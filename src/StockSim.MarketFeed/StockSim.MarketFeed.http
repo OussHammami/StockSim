@@ -1,0 +1,6 @@
+@StockSim.MarketFeed_HostAddress = http://localhost:5009
+
+GET {{StockSim.MarketFeed_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
