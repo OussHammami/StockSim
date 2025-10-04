@@ -5,6 +5,7 @@ using MudBlazor.Services;
 using StockSim.Web.Components;
 using StockSim.Web.Components.Account;
 using StockSim.Web.Data;
+using StockSim.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,7 +17,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-
+builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;

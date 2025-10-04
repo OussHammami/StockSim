@@ -6,12 +6,44 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Http.Connections
-@using StockSim.Shared.Models
+@using StockSim.Shared.Models 
+@using StockSim.Web.Services
+@inject IPortfolioService Portfolio
 @inject IHttpClientFactory HttpClientFactory
 @inject IConfiguration Config
 
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
+
+<MudPaper Class="p-3 mb-3">
+  <MudGrid>
+    <MudItem xxl="3" lg="4" md="6" sm="12">
+      <MudText Typo="Typo.h6">Trade</MudText>
+      <MudTextField @bind-Value="_symbol" Label="Symbol" Immediate="true" />
+      <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" />
+      <MudStack Row="true" Spacing="2" Class="mt-2">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Buy">Buy</MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Sell">Sell</MudButton>
+      </MudStack>
+      @if (!string.IsNullOrEmpty(_error)) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+    </MudItem>
+
+    <MudItem xxl="3" lg="4" md="6" sm="12">
+      <MudText Typo="Typo.h6">Account</MudText>
+      <MudList T="string" Dense="true">
+        <MudListItem T="string">Cash: @_snap.Cash.ToString("C")</MudListItem>
+        <MudListItem T="string">Market Value: @_snap.MarketValue.ToString("C")</MudListItem>
+        <MudListItem T="string">Unrealized PnL:
+          <MudText Color="@(_snap.UnrealizedPnl>=0?Color.Success:Color.Error)">
+             @_snap.UnrealizedPnl.ToString("C")
+          </MudText>
+        </MudListItem>
+        <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
+      </MudList>
+    </MudItem>
+  </MudGrid>
+</MudPaper>
+
 
 @if (_quotes.Count == 0)
 {
@@ -41,7 +73,12 @@ else
 
 @code {
     private readonly List<Quote> _quotes = new();
-    private HubConnection? _hub;
+    private HubConnection? _hub; 
+    private readonly Dictionary<string, Quote> _last = new(StringComparer.OrdinalIgnoreCase);
+    private PortfolioSnapshot _snap = new();
+    private string _symbol = "AAPL";
+    private int _qty = 1;
+    private string? _error;
 
     protected override async Task OnInitializedAsync()
     {
@@ -49,7 +86,12 @@ else
         var client = HttpClientFactory.CreateClient("MarketFeed");
         var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
         if (snap is { Length: > 0 })
+        {
+            foreach (var q in snap) _last[q.Symbol] = q;
             _quotes.AddRange(snap.OrderBy(q => q.Symbol));
+            _snap = Portfolio.Snapshot(_last);
+        }
+
 
         // 2) live updates
         var baseUrl = Config["MarketFeed:BaseUrl"]!;
@@ -68,6 +110,8 @@ else
             var i = _quotes.FindIndex(x => x.Symbol == q.Symbol);
             if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
             _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.Ordinal));
+            _last[q.Symbol] = q;               // keep latest
+            _snap = Portfolio.Snapshot(_last); // recompute PnL
             InvokeAsync(StateHasChanged);
         });
 
@@ -78,5 +122,23 @@ else
     {
         if (_hub is not null)
             await _hub.DisposeAsync();
+    }
+
+    private void Buy()
+    {
+        _error = null;
+        if (!_last.TryGetValue(_symbol, out var q)) { _error = "Unknown symbol."; return; }
+        if (!Portfolio.TryTrade(_symbol, _qty, q.Price, out _error))
+            return;
+        _snap = Portfolio.Snapshot(_last);
+    }
+
+    private void Sell()
+    {
+        _error = null;
+        if (!_last.TryGetValue(_symbol, out var q)) { _error = "Unknown symbol."; return; }
+        if (!Portfolio.TryTrade(_symbol, -_qty, q.Price, out _error))
+            return;
+        _snap = Portfolio.Snapshot(_last);
     }
 }

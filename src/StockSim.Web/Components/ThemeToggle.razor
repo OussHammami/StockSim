@@ -1,7 +1,11 @@
 ﻿@rendermode InteractiveServer
 @using MudBlazor
 
-<MudSwitch T="bool" @bind-Value="Value" Color="Color.Primary" Label="Dark mode" />
+<MudSwitch T="bool"
+           Value="Value"
+           ValueChanged="ValueChanged"
+           Color="Color.Primary"
+           Label="Dark mode" />
 
 @code {
     [Parameter] public bool Value { get; set; }
