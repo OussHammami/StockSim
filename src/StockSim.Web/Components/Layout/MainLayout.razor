@@ -1,6 +1,9 @@
 ﻿@using MudBlazor
-@inherits LayoutComponentBase
+@inherits Microsoft.AspNetCore.Components.LayoutComponentBase
 
+<MudThemeProvider IsDarkMode="@_dark" Theme="@_theme"/>
+<MudDialogProvider />
+<MudSnackbarProvider />
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -11,17 +14,16 @@
             <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
+        <div class="p-2">            
+            <ThemeToggle Value="@_dark" ValueChanged="v => _dark = v" />
+        </div>
         <article class="content px-4">
-            <MudThemeProvider />
-            <MudDialogProvider />
-            <MudSnackbarProvider />
             @Body
         </article>
     </main>
 </div>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
+@code {
+    private bool _dark;
+    private MudTheme _theme = new();
+}

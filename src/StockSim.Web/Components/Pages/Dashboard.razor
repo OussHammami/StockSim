@@ -1,13 +1,19 @@
 ﻿@page "/dashboard"
 @rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@implements IAsyncDisposable
+
 @using MudBlazor
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.AspNetCore.Http.Connections
+@using StockSim.Shared.Models
 @inject IHttpClientFactory HttpClientFactory
+@inject IConfiguration Config
 
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
 
-@if (_quotes is null)
+@if (_quotes.Count == 0)
 {
     <MudProgressCircular Indeterminate="true" />
 }
@@ -15,7 +21,10 @@ else
 {
     <MudTable Items="_quotes">
         <HeaderContent>
-            <MudTh>Symbol</MudTh><MudTh>Price</MudTh><MudTh>Δ</MudTh><MudTh>UTC</MudTh>
+            <MudTh>Symbol</MudTh>
+            <MudTh>Price</MudTh>
+            <MudTh>Δ</MudTh>
+            <MudTh>UTC</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
@@ -31,30 +40,43 @@ else
 }
 
 @code {
-    private StockSim.Shared.Models.Quote[]? _quotes;
-    private readonly string[] _symbols = new[] { "AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "TSLA", "META" };
-    private System.Timers.Timer? _timer;
+    private readonly List<Quote> _quotes = new();
+    private HubConnection? _hub;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadOnce();
-        _timer = new System.Timers.Timer(6000);
-        _timer.Elapsed += async (_, __) => await InvokeAsync(LoadOnce);
-        _timer.AutoReset = true;
-        _timer.Enabled = true;
-    }
+        // 1) initial snapshot
+        var client = HttpClientFactory.CreateClient("MarketFeed");
+        var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
+        if (snap is { Length: > 0 })
+            _quotes.AddRange(snap.OrderBy(q => q.Symbol));
 
-    private async Task LoadOnce()
-    {
-        try
+        // 2) live updates
+        var baseUrl = Config["MarketFeed:BaseUrl"]!;
+        _hub = new HubConnectionBuilder()
+            .WithUrl($"{baseUrl}/hubs/quotes", opt =>
+            {
+                // optional but robust in dev cross-origin scenarios
+                opt.SkipNegotiation = true;
+                opt.Transports = HttpTransportType.WebSockets;
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<Quote>("quote", q =>
         {
-            var client = HttpClientFactory.CreateClient("MarketFeed");
-            var url = $"/api/quotes?symbolsCsv={string.Join(",", _symbols)}";
-            _quotes = await client.GetFromJsonAsync<StockSim.Shared.Models.Quote[]>(url);
-            StateHasChanged();
-        }
-        catch { }
+            var i = _quotes.FindIndex(x => x.Symbol == q.Symbol);
+            if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
+            _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.Ordinal));
+            InvokeAsync(StateHasChanged);
+        });
+
+        await _hub.StartAsync();
     }
 
-    public void Dispose() => _timer?.Dispose();
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub is not null)
+            await _hub.DisposeAsync();
+    }
 }
