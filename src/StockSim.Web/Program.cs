@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server; 
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor;
 using MudBlazor.Services;
 using StockSim.Web.Components;
 using StockSim.Web.Components.Account;
@@ -17,7 +19,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<IPortfolioServiceAsync, EfPortfolioService>();
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -39,14 +41,27 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
+builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
+builder.Services.AddSingleton<RabbitConnection>();
+builder.Services.AddSingleton<OrderPublisher, OrderPublisher>();
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
+builder.Services.AddSingleton<LastQuotesCache>();
+builder.Services.AddSingleton<IOrderPublisher, OrderPublisher>();
+builder.Services.AddHostedService<OrderConsumer>();
 
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(o =>
+{
+    o.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
+    o.SnackbarConfiguration.VisibleStateDuration = 2500;
+});
 builder.Services.AddHttpClient("MarketFeed", (sp, client) =>
 {
     var baseUrl = builder.Configuration["MarketFeed:BaseUrl"] ?? "https://localhost:7173";
     client.BaseAddress = new Uri(baseUrl);
 });
+
+// bind CircuitOptions from configuration (Development file overrides)
+builder.Services.Configure<CircuitOptions>(builder.Configuration.GetSection("CircuitOptions"));
 
 var app = builder.Build();
 
@@ -58,7 +73,6 @@ if (app.Environment.IsDevelopment())
 else
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
@@ -70,7 +84,6 @@ app.UseAntiforgery();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
 app.Run();

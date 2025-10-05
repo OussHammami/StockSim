@@ -8,9 +8,13 @@
 @using Microsoft.AspNetCore.Http.Connections
 @using StockSim.Shared.Models 
 @using StockSim.Web.Services
-@inject IPortfolioService Portfolio
+@inject IPortfolioServiceAsync Portfolio
 @inject IHttpClientFactory HttpClientFactory
 @inject IConfiguration Config
+@inject StockSim.Web.Services.LastQuotesCache Cache
+@inject IOrderPublisher OrderPublisher
+@inject AuthenticationStateProvider Auth
+@inject ISnackbar Snackbar
 
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
@@ -42,6 +46,40 @@
       </MudList>
     </MudItem>
   </MudGrid>
+</MudPaper>
+<MudPaper Class="p-3 mb-3">
+    <MudText Typo="Typo.h6">Positions</MudText>
+
+    @if (_snap.Positions.Count == 0)
+    {
+        <MudText Color="Color.Secondary">No positions.</MudText>
+    }
+    else
+    {
+        <MudTable Items="_snap.Positions">
+            <HeaderContent>
+                <MudTh>Symbol</MudTh>
+                <MudTh align="right">Qty</MudTh>
+                <MudTh align="right">Avg</MudTh>
+                <MudTh align="right">Last</MudTh>
+                <MudTh align="right">Unrealized</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                @{
+                    var sym = context.Symbol;
+                    var last = _last.TryGetValue(sym, out var q) ? q.Price : 0m;
+                    var upnl = context.Quantity * (last - context.AvgPrice);
+                }
+                <MudTd>@sym</MudTd>
+                <MudTd Align="Right">@context.Quantity</MudTd>
+                <MudTd Align="Right">@context.AvgPrice.ToString("F2")</MudTd>
+                <MudTd Align="Right">@last.ToString("F2")</MudTd>
+                <MudTd Align="Right">
+                    <MudText Color="@(upnl >= 0 ? Color.Success : Color.Error)">@upnl.ToString("F2")</MudText>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
 </MudPaper>
 
 
@@ -89,7 +127,7 @@ else
         {
             foreach (var q in snap) _last[q.Symbol] = q;
             _quotes.AddRange(snap.OrderBy(q => q.Symbol));
-            _snap = Portfolio.Snapshot(_last);
+            _snap = await Portfolio.SnapshotAsync(_last);
         }
 
 
@@ -105,14 +143,20 @@ else
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<Quote>("quote", q =>
+        _hub.On<Quote>("quote", async q =>
         {
-            var i = _quotes.FindIndex(x => x.Symbol == q.Symbol);
-            if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
-            _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.Ordinal));
-            _last[q.Symbol] = q;               // keep latest
-            _snap = Portfolio.Snapshot(_last); // recompute PnL
-            InvokeAsync(StateHasChanged);
+            await InvokeAsync(async () =>
+            {
+                var i = _quotes.FindIndex(x => string.Equals(x.Symbol, q.Symbol, StringComparison.OrdinalIgnoreCase));
+                if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
+                Cache.Upsert(q);
+                _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase));
+
+                _last[q.Symbol] = q; 
+                _snap = await Portfolio.SnapshotAsync(_last);
+
+                StateHasChanged();
+            });
         });
 
         await _hub.StartAsync();
@@ -124,21 +168,32 @@ else
             await _hub.DisposeAsync();
     }
 
-    private void Buy()
+    private async Task<string> CurrentUserId()
     {
-        _error = null;
-        if (!_last.TryGetValue(_symbol, out var q)) { _error = "Unknown symbol."; return; }
-        if (!Portfolio.TryTrade(_symbol, _qty, q.Price, out _error))
-            return;
-        _snap = Portfolio.Snapshot(_last);
+        var st = await Auth.GetAuthenticationStateAsync();
+        return st.User.FindFirst("sub")?.Value
+            ?? st.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value
+            ?? throw new InvalidOperationException("Not authenticated.");
     }
 
-    private void Sell()
+    private async Task Buy()
     {
         _error = null;
-        if (!_last.TryGetValue(_symbol, out var q)) { _error = "Unknown symbol."; return; }
-        if (!Portfolio.TryTrade(_symbol, -_qty, q.Price, out _error))
-            return;
-        _snap = Portfolio.Snapshot(_last);
+        var uid = await CurrentUserId();
+        if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
+
+        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = _qty });
+        Snackbar.Add("Order sent", Severity.Success);
     }
+
+    private async Task Sell()
+    {
+        _error = null;
+        var uid = await CurrentUserId();
+        if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
+
+        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty });
+        Snackbar.Add("Order sent", Severity.Success);
+    }
+
 }

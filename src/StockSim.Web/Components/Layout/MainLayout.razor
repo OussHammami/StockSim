@@ -1,7 +1,7 @@
 ﻿@using MudBlazor
 @inherits Microsoft.AspNetCore.Components.LayoutComponentBase
 
-<MudThemeProvider IsDarkMode="@_dark" Theme="@_theme" />
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 <div class="page">
@@ -15,7 +15,7 @@
         </div>
 
         <div class="p-2">            
-            <ThemeToggle Value="@_dark" ValueChanged="v => _dark = v" />
+            <MudSwitch @bind-Value="_isDarkMode" Color="Color.Primary" Class="ma-4" T="bool" Label="Toggle Light/Dark Mode" />
         </div>
         <article class="content px-4">
             @Body
@@ -24,6 +24,6 @@
 </div>
 
 @code {
-    private bool _dark;
     private MudTheme _theme = new();
+    private bool _isDarkMode;
 }
