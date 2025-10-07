@@ -8,13 +8,15 @@
 @using Microsoft.AspNetCore.Http.Connections
 @using StockSim.Shared.Models 
 @using StockSim.Web.Services
-@inject IPortfolioServiceAsync Portfolio
+@inject IPortfolioService Portfolio
 @inject IHttpClientFactory HttpClientFactory
 @inject IConfiguration Config
 @inject StockSim.Web.Services.LastQuotesCache Cache
 @inject IOrderPublisher OrderPublisher
 @inject AuthenticationStateProvider Auth
 @inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IOrderService OrderService
 
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
@@ -49,6 +51,31 @@
 </MudPaper>
 <MudPaper Class="p-3 mb-3">
     <MudText Typo="Typo.h6">Positions</MudText>
+
+    <MudPaper Class="p-3 mb-3">
+        <MudText Typo="Typo.h6">Recent Orders</MudText>
+
+        @if (_orders.Count == 0)
+        {
+            <MudText Color="Color.Secondary">No orders.</MudText>
+        }
+        else
+        {
+            <MudTable Items="_orders">
+                <HeaderContent>
+                    <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
+                    <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                    <MudTd>@context.Symbol</MudTd>
+                    <MudTd Align="Right">@context.Quantity</MudTd>
+                    <MudTd Align="Right">@context.Status</MudTd>
+                    <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
 
     @if (_snap.Positions.Count == 0)
     {
@@ -111,8 +138,10 @@ else
 
 @code {
     private readonly List<Quote> _quotes = new();
-    private HubConnection? _hub; 
+    private HubConnection? _quoteshub; 
+    private HubConnection? _ordersHub;
     private readonly Dictionary<string, Quote> _last = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<StockSim.Web.Data.Trading.OrderEntity> _orders = new();
     private PortfolioSnapshot _snap = new();
     private string _symbol = "AAPL";
     private int _qty = 1;
@@ -123,17 +152,35 @@ else
         // 1) initial snapshot
         var client = HttpClientFactory.CreateClient("MarketFeed");
         var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
+        var uid = await CurrentUserId();
+        await LoadOrdersAsync(uid);
         if (snap is { Length: > 0 })
         {
             foreach (var q in snap) _last[q.Symbol] = q;
             _quotes.AddRange(snap.OrderBy(q => q.Symbol));
-            _snap = await Portfolio.SnapshotAsync(_last);
+            _snap = await Portfolio.SnapshotAsync(uid, _last);
         }
 
+        var ordersUrl = $"{NavigationManager.BaseUri.TrimEnd('/')}/hubs/orders?userId={Uri.EscapeDataString(uid)}";
+        _ordersHub = new HubConnectionBuilder()
+            .WithUrl(ordersUrl, o => { o.SkipNegotiation = true; o.Transports = HttpTransportType.WebSockets; })
+            .WithAutomaticReconnect()
+            .Build();
+
+
+        _ordersHub.On<object>("order", async _ =>
+        {
+            await LoadOrdersAsync(uid);
+            _snap = await Portfolio.SnapshotAsync(uid, _last);
+            Snackbar.Add("Order filled", Severity.Success);
+            await InvokeAsync(StateHasChanged);
+        });
+
+        await _ordersHub.StartAsync();
 
         // 2) live updates
         var baseUrl = Config["MarketFeed:BaseUrl"]!;
-        _hub = new HubConnectionBuilder()
+        _quoteshub = new HubConnectionBuilder()
             .WithUrl($"{baseUrl}/hubs/quotes", opt =>
             {
                 // optional but robust in dev cross-origin scenarios
@@ -143,7 +190,7 @@ else
             .WithAutomaticReconnect()
             .Build();
 
-        _hub.On<Quote>("quote", async q =>
+        _quoteshub.On<Quote>("quote", async q =>
         {
             await InvokeAsync(async () =>
             {
@@ -153,19 +200,21 @@ else
                 _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase));
 
                 _last[q.Symbol] = q; 
-                _snap = await Portfolio.SnapshotAsync(_last);
+                _snap = await Portfolio.SnapshotAsync(uid, _last);
 
                 StateHasChanged();
             });
         });
 
-        await _hub.StartAsync();
+        await _quoteshub.StartAsync();
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_hub is not null)
-            await _hub.DisposeAsync();
+        if (_quoteshub is not null)
+            await _quoteshub.DisposeAsync();
+        if (_ordersHub is not null) 
+            await _ordersHub.DisposeAsync();
     }
 
     private async Task<string> CurrentUserId()
@@ -194,6 +243,13 @@ else
 
         OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty });
         Snackbar.Add("Order sent", Severity.Success);
+    }
+
+    private async Task LoadOrdersAsync(string userId)
+    {
+        var rows = await OrderService.GetRecentAsync(userId);
+        _orders.Clear();
+        _orders.AddRange(rows);
     }
 
 }

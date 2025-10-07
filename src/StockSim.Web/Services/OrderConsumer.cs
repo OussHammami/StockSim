@@ -1,45 +1,74 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Shared.Models;
+using StockSim.Web.Data;
+using StockSim.Web.Data.Trading;
+using StockSim.Web.Hubs;
+using System.Text;
+using System.Text.Json;
 
 namespace StockSim.Web.Services;
 
-public sealed class OrderConsumer(RabbitConnection rc, IServiceProvider sp) : BackgroundService
+public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProvider serviceProvider, IHubContext<OrderHub> hub) : BackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var ch = rc.Connection.CreateModel();
-        var consumer = new AsyncEventingBasicConsumer(ch);
-        consumer.Received += async (_, ea) =>
+        var channel = rabitConnection.Connection.CreateModel();
+        var consumer = new AsyncEventingBasicConsumer(channel);
+        consumer.Received += async (_, eventArgs) =>
         {
             try
             {
-                var json = Encoding.UTF8.GetString(ea.Body.Span);
-                var cmd = JsonSerializer.Deserialize<OrderCommand>(json);
-                if (cmd is null) { ch.BasicAck(ea.DeliveryTag, false); return; }
+                var json = Encoding.UTF8.GetString(eventArgs.Body.Span);
+                var command = JsonSerializer.Deserialize<OrderCommand>(json);
+                if (command is null) { channel.BasicAck(eventArgs.DeliveryTag, false); return; }
 
-                // resolve scoped services per message
-                using var scope = sp.CreateScope();
-                var portfolio = scope.ServiceProvider.GetRequiredService<IPortfolioServiceAsync>();
+                using var scope = serviceProvider.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var portfolio = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
                 var quotesCache = scope.ServiceProvider.GetRequiredService<LastQuotesCache>();
 
-                if (!quotesCache.TryGet(cmd.Symbol, out var last))
+                // resolve scoped services per message
+
+                if (!quotesCache.TryGet(command.Symbol, out var last))
                 {
                     // skip unknown symbol; ack to avoid poison loop
-                    ch.BasicAck(ea.DeliveryTag, false); return;
+                    var rej = db.Orders.Single(o => o.OrderId == command.OrderId);
+                    rej.Status = OrderStatus.Rejected;
+                    db.SaveChanges();
+                    await hub.Clients.Group($"u:{command.UserId}")
+                       .SendAsync("order", new { command.OrderId, Status = OrderStatus.Rejected.ToString() });
+                    channel.BasicAck(eventArgs.DeliveryTag, false); return;
                 }
 
-                await portfolio.TryTradeAsync(cmd.Symbol, cmd.Quantity, last.Price, stoppingToken);
-                ch.BasicAck(ea.DeliveryTag, false);
+                await portfolio.TryTradeAsync(command.UserId, command.Symbol, command.Quantity, last.Price, stoppingToken);
+
+                var ord = db.Orders.Single(o => o.OrderId == command.OrderId);
+                ord.Status = OrderStatus.Filled;
+                ord.FillPrice = last.Price;
+                ord.FilledUtc = DateTimeOffset.UtcNow;
+                db.SaveChanges();
+
+                await hub.Clients.Group($"u:{command.UserId}")
+                   .SendAsync("order", new
+                   {
+                       command.OrderId,
+                       ord.Symbol,
+                       ord.Quantity,
+                       ord.FillPrice,
+                       Status = ord.Status.ToString(),
+                       ord.FilledUtc
+                   });
+
+                channel.BasicAck(eventArgs.DeliveryTag, false);
             }
             catch
             {
-                ch.BasicNack(ea.DeliveryTag, false, requeue: false);
+                channel.BasicNack(eventArgs.DeliveryTag, false, requeue: false);
             }
         };
-        ch.BasicConsume(queue: rc.Options.Queue, autoAck: false, consumer: consumer);
+        channel.BasicConsume(queue: rabitConnection.Options.Queue, autoAck: false, consumer: consumer);
         return Task.CompletedTask;
     }
 }
