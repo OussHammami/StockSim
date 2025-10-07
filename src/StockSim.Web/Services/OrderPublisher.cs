@@ -1,7 +1,9 @@
-﻿using System.Text;
-using System.Text.Json;
-using RabbitMQ.Client;
+﻿using RabbitMQ.Client;
 using StockSim.Shared.Models;
+using StockSim.Web.Data;
+using StockSim.Web.Data.Trading;
+using System.Text;
+using System.Text.Json;
 
 namespace StockSim.Web.Services;
 
@@ -10,12 +12,27 @@ public interface IOrderPublisher
     void Publish(OrderCommand cmd);
 }
 
-public sealed class OrderPublisher(RabbitConnection rc) : IOrderPublisher
+public sealed class OrderPublisher(RabbitConnection rc, IServiceScopeFactory scopeFactory) : IOrderPublisher
 {
     public void Publish(OrderCommand cmd)
     {
-        using var ch = rc.Connection.CreateModel();
+        using (var scope = scopeFactory.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Orders.Add(new OrderEntity
+            {
+                OrderId = cmd.OrderId,
+                UserId = cmd.UserId,
+                Symbol = cmd.Symbol,
+                Quantity = cmd.Quantity,
+                SubmittedUtc = cmd.SubmittedUtc,
+                Status = OrderStatus.Pending
+            });
+            db.SaveChanges();
+        }
+
+        using var channel = rc.Connection.CreateModel();
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(cmd));
-        ch.BasicPublish(exchange: "", routingKey: rc.Options.Queue, basicProperties: null, body: body);
+        channel.BasicPublish(exchange: "", routingKey: rc.Options.Queue, basicProperties: null, body: body);
     }
 }
