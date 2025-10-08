@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using StockSim.MarketFeed;
-using StockSim.Shared.Models;
+using StockSim.Domain.Models;
 using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);

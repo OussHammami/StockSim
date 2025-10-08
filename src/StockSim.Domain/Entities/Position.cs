@@ -1,4 +1,4 @@
-﻿namespace StockSim.Shared.Models;
+﻿namespace StockSim.Domain.Entities;
 
 public sealed class Position
 {

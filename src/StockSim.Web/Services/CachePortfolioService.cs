@@ -1,13 +1,9 @@
-﻿using StockSim.Shared.Models;
+﻿using StockSim.Application.Abstractions;
+using StockSim.Domain.Entities;
+using StockSim.Domain.Models;
 
 namespace StockSim.Web.Services;
 
-public interface ICachePortfolioService
-{
-    void Reset(decimal startingCash = 100_000m);
-    bool TryTrade(string symbol, int qty, decimal price, out string? error);
-    PortfolioSnapshot Snapshot(IReadOnlyDictionary<string, Quote> lastQuotes);
-}
 
 public sealed class CachePortfolioService : ICachePortfolioService
 {

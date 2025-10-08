@@ -1,9 +1,8 @@
 ﻿using StockSim.Domain.Enums;
 
-namespace StockSim.Web.Data.Trading
+namespace StockSim.Domain.Entities
 {
-
-    public class OrderEntity
+    public class Order
     {
         public Guid OrderId { get; set; }
         public string UserId { get; set; } = default!;
