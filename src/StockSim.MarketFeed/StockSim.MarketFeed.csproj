@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\StockSim.Shared\StockSim.Shared.csproj" />
+    <ProjectReference Include="..\StockSim.Domain\StockSim.Domain.csproj" />
   </ItemGroup>
 
 </Project>

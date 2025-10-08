@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
-using StockSim.Shared.Models;
+using StockSim.Domain.Entities;
+using StockSim.Domain.Models;
 using StockSim.Web.Data;
 using StockSim.Web.Data.Trading;
 

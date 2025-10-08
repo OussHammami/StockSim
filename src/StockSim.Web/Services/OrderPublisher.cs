@@ -1,5 +1,6 @@
 ﻿using RabbitMQ.Client;
-using StockSim.Shared.Models;
+using StockSim.Application.Contracts.Orders;
+using StockSim.Domain.Enums;
 using StockSim.Web.Data;
 using StockSim.Web.Data.Trading;
 using System.Text;

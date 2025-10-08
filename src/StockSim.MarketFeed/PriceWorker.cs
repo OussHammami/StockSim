@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using StockSim.MarketFeed;
-using StockSim.Shared.Models;
+using StockSim.Domain.Models;
 using System.Collections.Concurrent;
 
 public sealed class PriceWorker(ConcurrentDictionary<string, Quote> prices,

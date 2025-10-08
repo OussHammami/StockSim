@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using StockSim.Shared.Models;
+using StockSim.Application.Contracts.Orders;
+using StockSim.Domain.Enums;
+using StockSim.Domain.Models;
 using StockSim.Web.Data;
-using StockSim.Web.Data.Trading;
 using StockSim.Web.Hubs;
 using System.Text;
 using System.Text.Json;

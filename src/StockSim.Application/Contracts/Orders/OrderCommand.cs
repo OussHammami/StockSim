@@ -1,4 +1,4 @@
-﻿namespace StockSim.Shared.Models;
+﻿namespace StockSim.Application.Contracts.Orders;
 
 public sealed class OrderCommand
 {

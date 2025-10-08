@@ -6,7 +6,8 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Http.Connections
-@using StockSim.Shared.Models 
+@using StockSim.Application.Contracts.Orders
+@using StockSim.Domain.Models 
 @using StockSim.Web.Services
 @inject IPortfolioService Portfolio
 @inject IHttpClientFactory HttpClientFactory
@@ -50,33 +51,31 @@
   </MudGrid>
 </MudPaper>
 <MudPaper Class="p-3 mb-3">
+    <MudText Typo="Typo.h6">Recent Orders</MudText>
+
+    @if (_orders.Count == 0)
+    {
+        <MudText Color="Color.Secondary">No orders.</MudText>
+    }
+    else
+    {
+        <MudTable Items="_orders">
+            <HeaderContent>
+                <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
+                <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                <MudTd>@context.Symbol</MudTd>
+                <MudTd Align="Right">@context.Quantity</MudTd>
+                <MudTd Align="Right">@context.Status</MudTd>
+                <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudPaper>
+<MudPaper Class="p-3 mb-3">
     <MudText Typo="Typo.h6">Positions</MudText>
-
-    <MudPaper Class="p-3 mb-3">
-        <MudText Typo="Typo.h6">Recent Orders</MudText>
-
-        @if (_orders.Count == 0)
-        {
-            <MudText Color="Color.Secondary">No orders.</MudText>
-        }
-        else
-        {
-            <MudTable Items="_orders">
-                <HeaderContent>
-                    <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
-                    <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("HH:mm:ss")</MudTd>
-                    <MudTd>@context.Symbol</MudTd>
-                    <MudTd Align="Right">@context.Quantity</MudTd>
-                    <MudTd Align="Right">@context.Status</MudTd>
-                    <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
-                </RowTemplate>
-            </MudTable>
-        }
-    </MudPaper>
-
     @if (_snap.Positions.Count == 0)
     {
         <MudText Color="Color.Secondary">No positions.</MudText>
