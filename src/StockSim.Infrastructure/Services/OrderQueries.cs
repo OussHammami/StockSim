@@ -1,12 +1,12 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using StockSim.Application.Abstractions;
+using StockSim.Application.Abstractions.Paging;
 using StockSim.Domain.Entities;
 using StockSim.Domain.Enums;
-using StockSim.Web.Data;
+using StockSim.Infrastructure.Persistence;
 
 namespace StockSim.Web.Services;
 
-public sealed class OrderService(ApplicationDbContext db) : IOrderService
+public sealed class OrderQueries(ApplicationDbContext db) : IOrderQueries
 {
     public async Task<PageResult<Order>> GetPageAsync(string userId, int skip, int take, CancellationToken ct = default)
     {

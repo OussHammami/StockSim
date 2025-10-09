@@ -1,4 +1,4 @@
-﻿namespace StockSim.Web.Data.Trading;
+﻿namespace StockSim.Infrastructure.Persistence.Entities;
 
 public sealed class PositionEntity
 {

@@ -3,7 +3,8 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using StockSim.Web.Data;
+using StockSim.Infrastructure.Persistence.Identity;
+
 
 namespace StockSim.Web.Components.Account;
 

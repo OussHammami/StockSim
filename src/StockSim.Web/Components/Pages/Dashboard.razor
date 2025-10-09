@@ -10,16 +10,17 @@
 @using StockSim.Application.Contracts.Orders
 @using StockSim.Domain.Entities
 @using StockSim.Domain.Models 
+@using StockSim.Infrastructure.Messaging
 @using StockSim.Web.Services
 @inject IPortfolioService Portfolio
 @inject IHttpClientFactory HttpClientFactory
 @inject IConfiguration Config
-@inject StockSim.Web.Services.LastQuotesCache Cache
+@inject LastQuotesCache Cache
 @inject IOrderPublisher OrderPublisher
 @inject AuthenticationStateProvider Auth
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
-@inject IOrderService OrderService
+@inject IOrderQueries OrderQueries
 
 <MudSnackbarProvider />
 <MudPopoverProvider />
@@ -261,7 +262,7 @@ else
         var pageSize = state.PageSize;                 // 5
         var skip = state.Page * pageSize;
 
-        var page = await OrderService.GetPageAsync(uid, skip, pageSize);
+        var page = await OrderQueries.GetPageAsync(uid, skip, pageSize);
         return new TableData<StockSim.Domain.Entities.Order>
         {
             Items = page.Items,

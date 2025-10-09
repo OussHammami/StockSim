@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
-using StockSim.Web.Data;
+using StockSim.Infrastructure.Persistence.Identity;
+
 
 namespace StockSim.Web.Components.Account;
 

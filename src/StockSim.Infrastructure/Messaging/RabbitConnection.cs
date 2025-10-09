@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
 
-namespace StockSim.Web.Services;
+namespace StockSim.Infrastructure.Messaging;
 
 public sealed class RabbitOptions
 {

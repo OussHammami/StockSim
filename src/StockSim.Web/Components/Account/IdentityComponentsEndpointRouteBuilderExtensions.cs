@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
+using StockSim.Infrastructure.Persistence.Identity;
 using StockSim.Web.Components.Account.Pages;
 using StockSim.Web.Components.Account.Pages.Manage;
-using StockSim.Web.Data;
 
 namespace Microsoft.AspNetCore.Routing;
 

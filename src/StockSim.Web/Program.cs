@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Components.Server;
+using StockSim.Infrastructure.Messaging;
 using StockSim.Web;
 using StockSim.Web.Components;
-using StockSim.Web.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
