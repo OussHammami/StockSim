@@ -25,126 +25,137 @@
 <MudSnackbarProvider />
 <MudPopoverProvider />
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
-<MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
 
-<MudPaper Class="p-3 mb-3">
-  <MudGrid>
-    <MudItem xxl="3" lg="4" md="6" sm="12">
-      <MudText Typo="Typo.h6">Trade</MudText>
-      <MudTextField @bind-Value="_symbol" Label="Symbol" Immediate="true" />
-      <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" />
-      <MudStack Row="true" Spacing="2" Class="mt-2">
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Buy">Buy</MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Sell">Sell</MudButton>
-      </MudStack>
-      @if (!string.IsNullOrEmpty(_error)) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
-    </MudItem>
+<MudGrid Class="mt-2">
+  <!-- Left column: everything except quotes -->
+  <MudItem xxl="8" lg="8" md="12" sm="12">
+    <MudPaper Class="p-3 mb-3">
+      <MudGrid>
+        <MudItem xxl="3" lg="4" md="6" sm="12">
+          <MudText Typo="Typo.h6">Trade</MudText>
+          <MudTextField @bind-Value="_symbol" Label="Symbol" Immediate="true" />
+          <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" />
+          <MudStack Row="true" Spacing="2" Class="mt-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Buy">Buy</MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Sell">Sell</MudButton>
+          </MudStack>
+          @if (!string.IsNullOrEmpty(_error)) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+        </MudItem>
 
-    <MudItem xxl="3" lg="4" md="6" sm="12">
-      <MudText Typo="Typo.h6">Account</MudText>
-      <MudList T="string" Dense="true">
-        <MudListItem T="string">Cash: @_snap.Cash.ToString("C")</MudListItem>
-        <MudListItem T="string">Market Value: @_snap.MarketValue.ToString("C")</MudListItem>
-        <MudListItem T="string">Unrealized PnL:
-          <MudText Color="@(_snap.UnrealizedPnl>=0?Color.Success:Color.Error)">
-             @_snap.UnrealizedPnl.ToString("C")
-          </MudText>
-        </MudListItem>
-        <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
-      </MudList>
-      <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
-    </MudItem>
-  </MudGrid>
-</MudPaper>
-<MudPaper Class="p-3 mb-3">
-    <MudText Typo="Typo.h6">Recent Orders</MudText>
+        <MudItem xxl="3" lg="4" md="6" sm="12">
+          <MudText Typo="Typo.h6">Account</MudText>
+          <MudList T="string" Dense="true">
+            <MudListItem T="string">Cash: @_snap.Cash.ToString("C")</MudListItem>
+            <MudListItem T="string">Market Value: @_snap.MarketValue.ToString("C")</MudListItem>
+            <MudListItem T="string">Unrealized PnL:
+              <MudText Color="@(_snap.UnrealizedPnl>=0?Color.Success:Color.Error)">
+                 @_snap.UnrealizedPnl.ToString("C")
+              </MudText>
+            </MudListItem>
+            <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
+          </MudList>
+          <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
+        </MudItem>
+      </MudGrid>
+    </MudPaper>
 
-    <MudTable @ref="_ordersTable"
-          T="StockSim.Domain.Entities.Order"
-          ServerData="LoadOrdersAsync"
-          RowsPerPage="@_rowsPerPage"
-          RowsPerPageOptions="@_pageSizeOptions"
-          Dense="true" Bordered="true" Hover="true">
-        <NoRecordsContent>
-            <MudText Color="Color.Secondary">No orders.</MudText>
-        </NoRecordsContent>
-        <HeaderContent>
-            <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
-            <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
-            <MudTd>@context.Symbol</MudTd>
-            <MudTd Align="Right">@context.Quantity</MudTd>
-            <MudTd Align="Right">@context.Status</MudTd>
-            <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
-</MudPaper>
+    <MudPaper Class="p-3 mb-3">
+      <MudText Typo="Typo.h6">Recent Orders</MudText>
 
-<MudPaper Class="p-3 mb-3">
-    <MudText Typo="Typo.h6">Positions</MudText>
-    @if (_snap.Positions.Count == 0)
-    {
-        <MudText Color="Color.Secondary">No positions.</MudText>
-    }
-    else
-    {
-        <MudTable Items="_snap.Positions">
-            <HeaderContent>
-                <MudTh>Symbol</MudTh>
-                <MudTh align="right">Qty</MudTh>
-                <MudTh align="right">Avg</MudTh>
-                <MudTh align="right">Last</MudTh>
-                <MudTh align="right">Unrealized</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                @{
-                    var sym = context.Symbol;
-                    var last = _last.TryGetValue(sym, out var q) ? q.Price : 0m;
-                    var upnl = context.Quantity * (last - context.AvgPrice);
-                }
-                <MudTd>@sym</MudTd>
-                <MudTd Align="Right">@context.Quantity</MudTd>
-                <MudTd Align="Right">@context.AvgPrice.ToString("F2")</MudTd>
-                <MudTd Align="Right">@last.ToString("F2")</MudTd>
-                <MudTd Align="Right">
-                    <MudText Color="@(upnl >= 0 ? Color.Success : Color.Error)">@upnl.ToString("F2")</MudText>
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
-</MudPaper>
+      <MudTable @ref="_ordersTable"
+            T="StockSim.Domain.Entities.Order"
+            ServerData="LoadOrdersAsync"
+            RowsPerPage="@_rowsPerPage"
+            RowsPerPageOptions="@_pageSizeOptions"
+            Dense="true" Bordered="true" Hover="true">
+          <NoRecordsContent>
+              <MudText Color="Color.Secondary">No orders.</MudText>
+          </NoRecordsContent>
+          <HeaderContent>
+              <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
+              <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
+          </HeaderContent>
+          <RowTemplate>
+              <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
+              <MudTd>@context.Symbol</MudTd>
+              <MudTd Align="Right">@context.Quantity</MudTd>
+              <MudTd Align="Right">@context.Status</MudTd>
+              <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
+          </RowTemplate>
+          <PagerContent>
+              <MudTablePager />
+          </PagerContent>
+      </MudTable>
+    </MudPaper>
 
+    <MudPaper Class="p-3 mb-3">
+      <MudText Typo="Typo.h6">Positions</MudText>
+      @if (_snap.Positions.Count == 0)
+      {
+          <MudText Color="Color.Secondary">No positions.</MudText>
+      }
+      else
+      {
+          <MudTable Items="_snap.Positions">
+              <HeaderContent>
+                  <MudTh>Symbol</MudTh>
+                  <MudTh align="right">Qty</MudTh>
+                  <MudTh align="right">Avg</MudTh>
+                  <MudTh align="right">Last</MudTh>
+                  <MudTh align="right">Unrealized</MudTh>
+              </HeaderContent>
+              <RowTemplate>
+                  @{
+                      var sym = context.Symbol;
+                      var last = _last.TryGetValue(sym, out var q) ? q.Price : 0m;
+                      var upnl = context.Quantity * (last - context.AvgPrice);
+                  }
+                  <MudTd>@sym</MudTd>
+                  <MudTd Align="Right">@context.Quantity</MudTd>
+                  <MudTd Align="Right">@context.AvgPrice.ToString("F2")</MudTd>
+                  <MudTd Align="Right">@last.ToString("F2")</MudTd>
+                  <MudTd Align="Right">
+                      <MudText Color="@(upnl >= 0 ? Color.Success : Color.Error)">@upnl.ToString("F2")</MudText>
+                  </MudTd>
+              </RowTemplate>
+          </MudTable>
+      }
+    </MudPaper>
+  </MudItem>
 
-@if (_quotes.Count == 0)
-{
-    <MudProgressCircular Indeterminate="true" />
-}
-else
-{
-    <MudTable Items="_quotes">
-        <HeaderContent>
-            <MudTh>Symbol</MudTh>
-            <MudTh>Price</MudTh>
-            <MudTh>Δ</MudTh>
-            <MudTh>UTC</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
-            <MudTd DataLabel="Price">@context.Price</MudTd>
-            <MudTd DataLabel="Δ">
-                <MudText Color="@(context.Change > 0 ? Color.Success : context.Change < 0 ? Color.Error : Color.Default)">
-                    @((context.Change >= 0 ? "+" : "") + context.Change)
-                </MudText>
-            </MudTd>
-            <MudTd DataLabel="UTC">@context.TimeUtc.ToString("HH:mm:ss")</MudTd>
-        </RowTemplate>
-    </MudTable>
-}
+  <!-- Right column: quotes -->
+  <MudItem xxl="4" lg="4" md="12" sm="12">
+    <MudPaper Class="p-3 mb-3">
+      <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
+
+      @if (_quotes.Count == 0)
+      {
+          <MudProgressCircular Indeterminate="true" />
+      }
+      else
+      {
+          <MudTable Items="_quotes">
+              <HeaderContent>
+                  <MudTh>Symbol</MudTh>
+                  <MudTh>Price</MudTh>
+                  <MudTh>Δ</MudTh>
+                  <MudTh>UTC</MudTh>
+              </HeaderContent>
+              <RowTemplate>
+                  <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
+                  <MudTd DataLabel="Price">@context.Price</MudTd>
+                  <MudTd DataLabel="Δ">
+                      <MudText Color="@(context.Change > 0 ? Color.Success : context.Change < 0 ? Color.Error : Color.Default)">
+                          @((context.Change >= 0 ? "+" : "") + context.Change)
+                      </MudText>
+                  </MudTd>
+                  <MudTd DataLabel="UTC">@context.TimeUtc.ToString("HH:mm:ss")</MudTd>
+              </RowTemplate>
+          </MudTable>
+      }
+    </MudPaper>
+  </MudItem>
+</MudGrid>
 
 @code {
     private readonly List<Quote> _quotes = new();

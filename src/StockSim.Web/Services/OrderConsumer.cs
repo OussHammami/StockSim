@@ -1,17 +1,16 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions;
 using StockSim.Application.Contracts.Orders;
 using StockSim.Domain.Enums;
 using StockSim.Domain.Models;
+using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using System.Text;
 using System.Text.Json;
 
-namespace StockSim.Infrastructure.Messaging;
+namespace StockSim.Web.Services;
 
 public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProvider serviceProvider, IHubContext<OrderHub> hub) : BackgroundService
 {

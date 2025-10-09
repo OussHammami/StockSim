@@ -7,6 +7,7 @@ using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
 using StockSim.Web.Components.Account;
+using StockSim.Web.Services;
 
 namespace StockSim.Web;
 
@@ -48,6 +49,7 @@ public static class StartupExtensions
     {
         services.AddInfrastructure(cfg);
         services.AddSingleton<LastQuotesCache>();
+        services.AddHostedService<OrderConsumer>();
 
         services.AddHttpClient("MarketFeed", (sp, client) =>
         {

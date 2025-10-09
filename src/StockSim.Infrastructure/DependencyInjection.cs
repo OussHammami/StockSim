@@ -24,7 +24,6 @@ public static class DependencyInjection
         services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
         services.AddSingleton<RabbitConnection>();
         services.AddSingleton<IOrderPublisher, OrderPublisher>();
-        services.AddHostedService<OrderConsumer>();
 
         services.AddSingleton<IClock, SystemClock>();
         return services;
