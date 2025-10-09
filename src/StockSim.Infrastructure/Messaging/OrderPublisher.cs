@@ -1,12 +1,13 @@
-﻿using RabbitMQ.Client;
+﻿using Microsoft.Extensions.DependencyInjection;
+using RabbitMQ.Client;
 using StockSim.Application.Contracts.Orders;
 using StockSim.Domain.Enums;
-using StockSim.Web.Data;
-using StockSim.Web.Data.Trading;
+using StockSim.Infrastructure.Persistence;
+using StockSim.Infrastructure.Persistence.Entities;
 using System.Text;
 using System.Text.Json;
 
-namespace StockSim.Web.Services;
+namespace StockSim.Infrastructure.Messaging;
 
 public interface IOrderPublisher
 {

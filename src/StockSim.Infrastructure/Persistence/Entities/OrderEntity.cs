@@ -1,6 +1,6 @@
 ﻿using StockSim.Domain.Enums;
 
-namespace StockSim.Web.Data.Trading
+namespace StockSim.Infrastructure.Persistence.Entities
 {
 
     public class OrderEntity

@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using MudBlazor.Services;
-using StockSim.Application.Abstractions;
+using StockSim.Infrastructure;
+using StockSim.Infrastructure.Messaging;
+using StockSim.Infrastructure.Persistence;
+using StockSim.Infrastructure.Persistence.Identity;
 using StockSim.Web.Components.Account;
-using StockSim.Web.Data;
-using StockSim.Web.Services;
 
 namespace StockSim.Web;
 
@@ -27,10 +27,7 @@ public static class StartupExtensions
         })
         .AddIdentityCookies();
 
-        var cs = cfg.GetConnectionString("DefaultConnection")
-                 ?? throw new InvalidOperationException("Missing DefaultConnection.");
 
-        services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite(cs));
         services.AddDatabaseDeveloperPageExceptionFilter();
 
         services.AddIdentityCore<ApplicationUser>(o =>
@@ -49,15 +46,8 @@ public static class StartupExtensions
     // Domain services: portfolio, RabbitMQ, quotes cache, MarketFeed client
     public static IServiceCollection AddDomainServices(this IServiceCollection services, IConfiguration cfg)
     {
-        services.AddScoped<IPortfolioService, PortfolioService>();
-        services.AddScoped<IOrderService, OrderService>();
-        services.AddSingleton<IClock, SystemClock>();
+        services.AddInfrastructure(cfg);
         services.AddSingleton<LastQuotesCache>();
-
-        services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
-        services.AddSingleton<RabbitConnection>();
-        services.AddSingleton<IOrderPublisher, OrderPublisher>();
-        services.AddHostedService<OrderConsumer>();
 
         services.AddHttpClient("MarketFeed", (sp, client) =>
         {

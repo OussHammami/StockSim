@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace StockSim.Web.Migrations
+namespace StockSim.Infrastructure.Persistence.Migrations
 {
     /// <inheritdoc />
     public partial class CreateIdentitySchema : Migration

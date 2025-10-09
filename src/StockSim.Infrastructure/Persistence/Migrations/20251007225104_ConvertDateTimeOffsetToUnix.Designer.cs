@@ -4,15 +4,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using StockSim.Web.Data;
+
 
 #nullable disable
 
-namespace StockSim.Web.Migrations
+namespace StockSim.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251006225930_AddOrders")]
-    partial class AddOrders
+    [Migration("20251007225104_ConvertDateTimeOffsetToUnix")]
+    partial class ConvertDateTimeOffsetToUnix
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -221,8 +221,8 @@ namespace StockSim.Web.Migrations
                     b.Property<decimal?>("FillPrice")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("FilledUtc")
-                        .HasColumnType("TEXT");
+                    b.Property<long?>("FilledUtc")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("INTEGER");
@@ -230,8 +230,8 @@ namespace StockSim.Web.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTimeOffset>("SubmittedUtc")
-                        .HasColumnType("TEXT");
+                    b.Property<long>("SubmittedUtc")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Symbol")
                         .IsRequired()
@@ -242,6 +242,8 @@ namespace StockSim.Web.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("OrderId");
+
+                    b.HasIndex("UserId", "SubmittedUtc");
 
                     b.ToTable("Orders");
                 });

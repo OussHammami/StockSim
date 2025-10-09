@@ -1,14 +1,13 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using StockSim.Application.Abstractions;
 using StockSim.Domain.Entities;
 using StockSim.Domain.Models;
-using StockSim.Web.Data;
-using StockSim.Web.Data.Trading;
+using StockSim.Infrastructure.Persistence;
+using StockSim.Infrastructure.Persistence.Entities;
 
 namespace StockSim.Web.Services;
 
-public sealed class PortfolioService(ApplicationDbContext db, AuthenticationStateProvider auth) : IPortfolioService
+public sealed class PortfolioService(ApplicationDbContext db) : IPortfolioService
 {
     private const decimal DefaultStartingCash = 100_000m;
 
