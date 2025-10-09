@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using StockSim.Application.Abstractions;
 using StockSim.Application.Contracts.Orders;
 using StockSim.Domain.Enums;
 using StockSim.Domain.Models;

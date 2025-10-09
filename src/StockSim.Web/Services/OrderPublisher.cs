@@ -26,7 +26,7 @@ public sealed class OrderPublisher(RabbitConnection rc, IServiceScopeFactory sco
                 UserId = cmd.UserId,
                 Symbol = cmd.Symbol,
                 Quantity = cmd.Quantity,
-                SubmittedUtc = cmd.SubmittedUtc,
+                SubmittedUtc = DateTimeOffset.UtcNow,
                 Status = OrderStatus.Pending
             });
             db.SaveChanges();
