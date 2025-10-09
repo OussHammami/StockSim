@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.EntityFrameworkCore;
+using StockSim.Application.Abstractions;
 using StockSim.Domain.Entities;
 using StockSim.Domain.Models;
 using StockSim.Web.Data;
@@ -16,8 +17,10 @@ public sealed class PortfolioService(ApplicationDbContext db, AuthenticationStat
         var pf = await db.Portfolios.FindAsync([userId], ct) ?? new PortfolioEntity { UserId = userId };
         pf.Cash = DefaultStartingCash;
         var pos = await db.Positions.Where(p => p.UserId == userId).ToListAsync(ct);
+        var ord = await db.Orders.Where(p => p.UserId == userId).ToListAsync(ct);
         db.Positions.RemoveRange(pos);
         db.Portfolios.Update(pf);
+        db.Orders.RemoveRange(ord);
         await db.SaveChangesAsync(ct);
     }
 
@@ -89,11 +92,4 @@ public sealed class PortfolioService(ApplicationDbContext db, AuthenticationStat
 
         return new PortfolioSnapshot { Cash = pf.Cash, Positions = list, MarketValue = mv, UnrealizedPnl = upnl };
     }
-}
-
-public interface IPortfolioService
-{
-    Task ResetAsync(string userId, CancellationToken ct = default);
-    Task<bool> TryTradeAsync(string userId, string symbol, int qty, decimal price, CancellationToken ct, Action<string>? setError = null);
-    Task<PortfolioSnapshot> SnapshotAsync(string userId, IReadOnlyDictionary<string, Quote> lastQuotes, CancellationToken ct = default);
 }

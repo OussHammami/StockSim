@@ -6,7 +6,9 @@
 @using MudBlazor
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.AspNetCore.Http.Connections
+@using StockSim.Application.Abstractions
 @using StockSim.Application.Contracts.Orders
+@using StockSim.Domain.Entities
 @using StockSim.Domain.Models 
 @using StockSim.Web.Services
 @inject IPortfolioService Portfolio
@@ -19,6 +21,8 @@
 @inject NavigationManager NavigationManager
 @inject IOrderService OrderService
 
+<MudSnackbarProvider />
+<MudPopoverProvider />
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
 
@@ -47,33 +51,39 @@
         </MudListItem>
         <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
       </MudList>
+      <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
     </MudItem>
   </MudGrid>
 </MudPaper>
 <MudPaper Class="p-3 mb-3">
     <MudText Typo="Typo.h6">Recent Orders</MudText>
 
-    @if (_orders.Count == 0)
-    {
-        <MudText Color="Color.Secondary">No orders.</MudText>
-    }
-    else
-    {
-        <MudTable Items="_orders">
-            <HeaderContent>
-                <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
-                <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("HH:mm:ss")</MudTd>
-                <MudTd>@context.Symbol</MudTd>
-                <MudTd Align="Right">@context.Quantity</MudTd>
-                <MudTd Align="Right">@context.Status</MudTd>
-                <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
-            </RowTemplate>
-        </MudTable>
-    }
+    <MudTable @ref="_ordersTable"
+          T="StockSim.Domain.Entities.Order"
+          ServerData="LoadOrdersAsync"
+          RowsPerPage="@_rowsPerPage"
+          RowsPerPageOptions="@_pageSizeOptions"
+          Dense="true" Bordered="true" Hover="true">
+        <NoRecordsContent>
+            <MudText Color="Color.Secondary">No orders.</MudText>
+        </NoRecordsContent>
+        <HeaderContent>
+            <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
+            <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
+            <MudTd>@context.Symbol</MudTd>
+            <MudTd Align="Right">@context.Quantity</MudTd>
+            <MudTd Align="Right">@context.Status</MudTd>
+            <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
 </MudPaper>
+
 <MudPaper Class="p-3 mb-3">
     <MudText Typo="Typo.h6">Positions</MudText>
     @if (_snap.Positions.Count == 0)
@@ -137,14 +147,16 @@ else
 
 @code {
     private readonly List<Quote> _quotes = new();
+    private MudTable<StockSim.Domain.Entities.Order>? _ordersTable;
     private HubConnection? _quoteshub; 
     private HubConnection? _ordersHub;
     private readonly Dictionary<string, Quote> _last = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<StockSim.Web.Data.Trading.OrderEntity> _orders = new();
     private PortfolioSnapshot _snap = new();
     private string _symbol = "AAPL";
     private int _qty = 1;
     private string? _error;
+    private int _rowsPerPage = 5;
+    private static readonly int[] _pageSizeOptions = { 5, 10, 25 };
 
     protected override async Task OnInitializedAsync()
     {
@@ -152,7 +164,6 @@ else
         var client = HttpClientFactory.CreateClient("MarketFeed");
         var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
         var uid = await CurrentUserId();
-        await LoadOrdersAsync(uid);
         if (snap is { Length: > 0 })
         {
             foreach (var q in snap) _last[q.Symbol] = q;
@@ -169,9 +180,9 @@ else
 
         _ordersHub.On<object>("order", async _ =>
         {
-            await LoadOrdersAsync(uid);
-            _snap = await Portfolio.SnapshotAsync(uid, _last);
             Snackbar.Add("Order filled", Severity.Success);
+            _snap = await Portfolio.SnapshotAsync(uid, _last);
+            await (_ordersTable?.ReloadServerData() ?? Task.CompletedTask);
             await InvokeAsync(StateHasChanged);
         });
 
@@ -231,7 +242,7 @@ else
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
 
         OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = _qty });
-        Snackbar.Add("Order sent", Severity.Success);
+        Snackbar.Add("Order sent", Severity.Normal);
     }
 
     private async Task Sell()
@@ -241,14 +252,29 @@ else
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
 
         OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty });
-        Snackbar.Add("Order sent", Severity.Success);
+        Snackbar.Add("Order sent", Severity.Normal);
     }
 
-    private async Task LoadOrdersAsync(string userId)
+    private async Task<TableData<StockSim.Domain.Entities.Order>> LoadOrdersAsync(TableState state, CancellationToken ct)
     {
-        var rows = await OrderService.GetRecentAsync(userId);
-        _orders.Clear();
-        _orders.AddRange(rows);
-    }
+        var uid = await CurrentUserId();               // you already have this helper
+        var pageSize = state.PageSize;                 // 5
+        var skip = state.Page * pageSize;
 
+        var page = await OrderService.GetPageAsync(uid, skip, pageSize);
+        return new TableData<StockSim.Domain.Entities.Order>
+        {
+            Items = page.Items,
+            TotalItems = page.Total
+        };
+    }
+    private async Task Reset(MouseEventArgs args)
+    {
+        var uid = await CurrentUserId();
+        await Portfolio.ResetAsync(uid);
+        _snap = await Portfolio.SnapshotAsync(uid, _last);
+        await (_ordersTable?.ReloadServerData() ?? Task.CompletedTask);
+        Snackbar.Add("Portfolio reset.", Severity.Info);
+        await InvokeAsync(StateHasChanged);
+    }
 }

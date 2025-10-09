@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor;
 using MudBlazor.Services;
+using StockSim.Application.Abstractions;
 using StockSim.Web.Components.Account;
 using StockSim.Web.Data;
 using StockSim.Web.Services;
@@ -50,7 +51,7 @@ public static class StartupExtensions
     {
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<IOrderService, OrderService>();
-
+        services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<LastQuotesCache>();
 
         services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
