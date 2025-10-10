@@ -19,12 +19,13 @@ builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
 builder.Services.AddSingleton(new ConcurrentDictionary<string, Quote>());
 builder.Services.AddSingleton(new[] { "AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "TSLA", "META" });
 builder.Services.AddHostedService<PriceWorker>();
-
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
+app.MapHealthChecks("/healthz");
 
 app.UseHttpsRedirection();
 app.UseCors(AllowWeb);
