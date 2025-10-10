@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
@@ -24,6 +25,9 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     db.Database.Migrate();
 }
+
+app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") });
 
 // pipeline
 app.UseAppPipeline();
