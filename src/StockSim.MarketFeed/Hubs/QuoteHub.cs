@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 
-namespace StockSim.MarketFeed
+namespace StockSim.MarketFeed.Hubs
 {
     public sealed class QuoteHub : Hub { }
 }
