@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Mvc;
-using StockSim.MarketFeed;
 using StockSim.Domain.Models;
 using System.Collections.Concurrent;
+using StockSim.MarketFeed.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();

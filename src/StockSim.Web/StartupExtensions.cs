@@ -84,10 +84,10 @@ public static class StartupExtensions
         {
             app.UseExceptionHandler("/Error", createScopeForErrors: true);
             app.UseHsts();
+            app.UseHttpsRedirection();
         }
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseAntiforgery();
         return app;
