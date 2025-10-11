@@ -47,9 +47,11 @@ public static class StartupExtensions
     // Domain services: portfolio, RabbitMQ, quotes cache, MarketFeed client
     public static IServiceCollection AddDomainServices(this IServiceCollection services, IConfiguration cfg)
     {
+        services.AddHostedService<OrderConsumer>();
+        services.AddHostedService<OutboxDispatcher>();
+
         services.AddInfrastructure(cfg);
         services.AddSingleton<LastQuotesCache>();
-        services.AddHostedService<OrderConsumer>();
         services.AddHealthChecks()
         .AddDbContextCheck<ApplicationDbContext>("db", tags: new[] { "ready" })
         .AddCheck<RabbitHealthCheck>("rabbit", tags: new[] { "ready" });

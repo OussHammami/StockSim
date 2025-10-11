@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions;
@@ -7,6 +8,7 @@ using StockSim.Domain.Enums;
 using StockSim.Domain.Models;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
+using StockSim.Infrastructure.Persistence.Entities;
 using System.Text;
 using System.Text.Json;
 
@@ -28,40 +30,72 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
 
                 using var scope = serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                await using var tx = await db.Database.BeginTransactionAsync(stoppingToken);
                 var portfolio = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
                 var quotesCache = scope.ServiceProvider.GetRequiredService<LastQuotesCache>();
 
-                // resolve scoped services per message
+                if (await db.Set<ProcessedOrder>().FindAsync(new object[] { command.OrderId }, stoppingToken) is not null)
+                {
+                    channel.BasicAck(eventArgs.DeliveryTag, false);
+                    return;
+                }
+
 
                 if (!quotesCache.TryGet(command.Symbol, out var last))
                 {
-                    // skip unknown symbol; ack to avoid poison loop
-                    var rej = db.Orders.Single(o => o.OrderId == command.OrderId);
-                    rej.Status = OrderStatus.Rejected;
-                    db.SaveChanges();
-                    await hub.Clients.Group($"u:{command.UserId}")
-                       .SendAsync("order", new { command.OrderId, Status = OrderStatus.Rejected.ToString() });
-                    channel.BasicAck(eventArgs.DeliveryTag, false); return;
+                    var rejOrd = await db.Orders.SingleAsync(o => o.OrderId == command.OrderId, stoppingToken);
+                    rejOrd.Status = OrderStatus.Rejected;
+                    await db.SaveChangesAsync(stoppingToken);
+
+                    var ev = new OrderRejectedEvent(rejOrd.OrderId, rejOrd.UserId, rejOrd.Symbol, rejOrd.Quantity, "No quote", DateTimeOffset.UtcNow);
+                    db.Add(new OutboxMessage
+                    {
+                        Type = nameof(OrderRejectedEvent),
+                        Payload = JsonSerializer.Serialize(ev)
+                    });
+
+                    db.Add(new ProcessedOrder { OrderId = command.OrderId });
+                    await db.SaveChangesAsync(stoppingToken);
+                    await tx.CommitAsync(stoppingToken);
+                    channel.BasicAck(eventArgs.DeliveryTag, false);
+                    return;
                 }
 
-                await portfolio.TryTradeAsync(command.UserId, command.Symbol, command.Quantity, last.Price, stoppingToken);
+                string? reason = null;
+                var ok = await portfolio.TryTradeAsync(command.UserId, command.Symbol, command.Quantity, last.Price, stoppingToken, r => reason = r);
+                var ord = await db.Orders.SingleAsync(o => o.OrderId == command.OrderId, stoppingToken);
 
-                var ord = db.Orders.Single(o => o.OrderId == command.OrderId);
+                if (!ok)
+                {
+                    ord.Status = OrderStatus.Rejected;
+                    ord.FillPrice = null;
+                    ord.FilledUtc = null;
+
+                    var ev = new OrderRejectedEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity,
+                                                    reason ?? "Insufficient funds/quantity", DateTimeOffset.UtcNow);
+                    db.Add(new OutboxMessage { Type = nameof(OrderRejectedEvent), Payload = JsonSerializer.Serialize(ev) });
+
+                    db.Add(new ProcessedOrder { OrderId = command.OrderId });
+                    await db.SaveChangesAsync(stoppingToken);
+                    await tx.CommitAsync(stoppingToken);
+                    channel.BasicAck(eventArgs.DeliveryTag, false);
+                    return;
+                }
+
                 ord.Status = OrderStatus.Filled;
                 ord.FillPrice = last.Price;
                 ord.FilledUtc = DateTimeOffset.UtcNow;
-                db.SaveChanges();
 
-                await hub.Clients.Group($"u:{command.UserId}")
-                   .SendAsync("order", new
-                   {
-                       command.OrderId,
-                       ord.Symbol,
-                       ord.Quantity,
-                       ord.FillPrice,
-                       Status = ord.Status.ToString(),
-                       ord.FilledUtc
-                   });
+                var filled = new OrderFilledEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, ord.FillPrice!.Value, ord.FilledUtc!.Value);
+                db.Add(new OutboxMessage
+                {
+                    Type = nameof(OrderFilledEvent),
+                    Payload = JsonSerializer.Serialize(filled)
+                }); 
+                
+                db.Add(new ProcessedOrder { OrderId = command.OrderId });
+                await db.SaveChangesAsync(stoppingToken);
+                await tx.CommitAsync(stoppingToken);
 
                 channel.BasicAck(eventArgs.DeliveryTag, false);
             }

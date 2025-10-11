@@ -14,8 +14,9 @@ public static class DependencyInjection
     {
         var cs = cfg.GetConnectionString("DefaultConnection")
                  ?? throw new InvalidOperationException("Missing DefaultConnection.");
-        services.AddDbContext<ApplicationDbContext>(o => o.UseSqlite(cs, b => b.MigrationsAssembly("StockSim.Infrastructure")));
         services.AddDatabaseDeveloperPageExceptionFilter();
+        services.AddDbContext<ApplicationDbContext>(o => o.UseNpgsql(cs));
+
 
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<IOrderQueries, OrderQueries>();
