@@ -1,7 +1,28 @@
+version: "3.9"
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: stocksim
+      POSTGRES_PASSWORD: stocksim
+      POSTGRES_DB: stocksim
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U stocksim -d stocksim"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   rabbitmq:
     image: rabbitmq:3-management
     ports: ["5672:5672","15672:15672"]
+    healthcheck:
+      test: ["CMD","rabbitmq-diagnostics","-q","ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   marketfeed:
     build:
@@ -9,7 +30,10 @@ services:
       dockerfile: src/StockSim.MarketFeed/Dockerfile
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
-    ports: ["8081:8080"]
+    ports: ["8081:8080"]  # for browser access (Swagger, etc.)
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   web:
     build:
@@ -18,20 +42,21 @@ services:
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ASPNETCORE_ENVIRONMENT: Development
-      # Rabbit
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim
+      MarketFeed__BaseUrl: http://marketfeed:8080     # server-side calls use service DNS
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
       Rabbit__User: guest
       Rabbit__Pass: guest
       Rabbit__Queue: stocksim.orders
-      # MarketFeed base URL for the browser
-      MarketFeed__BaseUrl: http://marketfeed:8080
-      # SQLite DB path inside container
-      ConnectionStrings__DefaultConnection: Data Source=/data/StockSim.db
     ports: ["8080:8080"]
-    depends_on: [rabbitmq, marketfeed]
-    volumes:
-      - webdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      marketfeed:
+        condition: service_started
 
 volumes:
-  webdata: {}
+  pgdata: {}

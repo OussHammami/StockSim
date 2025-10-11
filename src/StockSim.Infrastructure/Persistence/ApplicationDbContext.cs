@@ -21,19 +21,25 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasKey(p => new { p.UserId, p.Symbol });
         builder.Entity<OrderEntity>()
             .HasKey(p => p.OrderId);
-        builder.Entity<OrderEntity>()
-            .Property(o => o.SubmittedUtc)
-            .HasConversion(
-                v => v.ToUnixTimeMilliseconds(),
-                v => DateTimeOffset.FromUnixTimeMilliseconds(v));
+        if (Database.ProviderName!.Contains("Sqlite"))
+        {
+            builder.Entity<OrderEntity>()
+             .Property(o => o.SubmittedUtc)
+             .HasConversion(v => v.ToUnixTimeMilliseconds(),
+                            v => DateTimeOffset.FromUnixTimeMilliseconds(v));
 
-        builder.Entity<OrderEntity>()
-            .Property(o => o.FilledUtc)
-            .HasConversion(
-                v => v.HasValue ? v.Value.ToUnixTimeMilliseconds() : (long?)null,
-                v => v.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(v.Value) : (DateTimeOffset?)null);
+            builder.Entity<OrderEntity>()
+             .Property(o => o.FilledUtc)
+             .HasConversion(v => v.HasValue ? v.Value.ToUnixTimeMilliseconds() : (long?)null,
+                            v => v.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(v.Value) : (DateTimeOffset?)null);
+        }
 
         builder.Entity<OrderEntity>()
             .HasIndex(o => new { o.UserId, o.SubmittedUtc });
+
+        builder.Entity<ProcessedOrder>()
+            .HasKey(x => x.OrderId);
+        builder.Entity<OutboxMessage>()
+            .HasIndex(x => x.ProcessedUtc);
     }
 }
