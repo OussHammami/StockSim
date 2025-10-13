@@ -10,7 +10,7 @@ builder.Services.AddSignalR();
 // CORS: allow the Blazor Web origin (update the port to your Web app HTTPS port)
 const string AllowWeb = "_allowWeb";
 builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
-    p.WithOrigins("https://localhost:7197")
+    p.WithOrigins("https://localhost:7197", "http://localhost:8082")
      .AllowAnyHeader()
      .AllowAnyMethod()
      .AllowCredentials()));

@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   postgres:
     image: postgres:16-alpine
@@ -55,6 +54,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      marketfeed:
+        condition: service_started
+  react:
+    build:
+      context: src/StockSim.React
+      dockerfile: Dockerfile
+    ports: ["8082:80"]
+    depends_on:
       marketfeed:
         condition: service_started
 
