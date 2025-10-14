@@ -29,6 +29,7 @@ services:
       dockerfile: src/StockSim.MarketFeed/Dockerfile
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
+      OTEL_SERVICE_NAME: stocksim.marketfeed
     ports: ["8081:8080"]  # for browser access (Swagger, etc.)
     depends_on:
       rabbitmq:
@@ -48,6 +49,7 @@ services:
       Rabbit__User: guest
       Rabbit__Pass: guest
       Rabbit__Queue: stocksim.orders
+      OTEL_SERVICE_NAME: stocksim.web
     ports: ["8080:8080"]
     depends_on:
       postgres:
@@ -78,5 +80,8 @@ services:
     ports: ["3000:3000"]
     depends_on:
       prometheus: { condition: service_started }
+  zipkin:
+    image: openzipkin/zipkin:2.24
+    ports: ["9411:9411"]
 volumes:
   pgdata: {}
