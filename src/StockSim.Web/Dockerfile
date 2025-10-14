@@ -19,11 +19,10 @@ COPY src/StockSim.Domain/         src/StockSim.Domain/
 COPY src/StockSim.Application/    src/StockSim.Application/
 COPY src/StockSim.Infrastructure/ src/StockSim.Infrastructure/
 COPY src/StockSim.Web/            src/StockSim.Web/
+ARG BUILD_CONFIGURATION=Debug
+# RUN dotnet publish src/StockSim.Web/StockSim.Web.csproj -c Release -o /out
+RUN dotnet publish src/StockSim.Web/StockSim.Web.csproj -c $BUILD_CONFIGURATION -o /out /p:DebugType=portable /p:DebugSymbols=true
 
-# sanity check (optional)
-RUN test -f src/StockSim.Web/Program.cs
-
-RUN dotnet publish src/StockSim.Web/StockSim.Web.csproj -c Release -o /out
 
 FROM base
 WORKDIR /app

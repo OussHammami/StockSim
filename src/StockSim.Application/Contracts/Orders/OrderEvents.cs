@@ -5,3 +5,6 @@ public sealed record OrderFilledEvent(Guid OrderId, string UserId, string Symbol
     : OrderEvent(OrderId, UserId, Symbol, Quantity, TimeUtc);
 public sealed record OrderRejectedEvent(Guid OrderId, string UserId, string Symbol, int Quantity, string Reason, DateTimeOffset TimeUtc)
     : OrderEvent(OrderId, UserId, Symbol, Quantity, TimeUtc);
+public sealed record OrderAcceptedEvent(Guid OrderId, string UserId, string Symbol, int Quantity, DateTimeOffset TimeUtc)
+: OrderEvent(OrderId, UserId, Symbol, Quantity, TimeUtc);
+

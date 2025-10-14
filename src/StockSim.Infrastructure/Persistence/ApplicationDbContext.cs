@@ -36,6 +36,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         builder.Entity<OrderEntity>()
             .HasIndex(o => new { o.UserId, o.SubmittedUtc });
+        builder.Entity<OrderEntity>(b =>
+        {
+            b.Property(x => x.Type).HasConversion<int>();
+            b.Property(x => x.Tif).HasConversion<int>();
+        });
 
         builder.Entity<ProcessedOrder>()
             .HasKey(x => x.OrderId);

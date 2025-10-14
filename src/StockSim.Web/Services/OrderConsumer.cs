@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions;
@@ -10,7 +9,6 @@ using StockSim.Domain.Models;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Entities;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
@@ -18,7 +16,6 @@ namespace StockSim.Web.Services;
 
 public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProvider serviceProvider) : BackgroundService
 {
-    static readonly ActivitySource Orders = new("StockSim.Orders");
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var channel = rabitConnection.Connection.CreateModel();
@@ -27,94 +24,102 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
         {
             try
             {
-                var json = Encoding.UTF8.GetString(eventArgs.Body.Span);
-                var command = JsonSerializer.Deserialize<OrderCommand>(json);
-
-                if (command is null) { channel.BasicAck(eventArgs.DeliveryTag, false); return; }
-
-                var parent = Propagators.DefaultTextMapPropagator.Extract(
-                    default,
-                    eventArgs.BasicProperties.Headers,
-                    (d,k) => d.TryGetValue(k, out var v) ? new[] { Encoding.UTF8.GetString((byte[])v) } : Array.Empty<string>());
-                using var act = Orders.StartActivity("orders.consume", ActivityKind.Consumer, parent.ActivityContext);
-                act?.SetTag("order.id", command.OrderId);
-                act?.SetTag("symbol", command.Symbol);
-                act?.SetTag("qty", command.Quantity);
+                var cmd = JsonSerializer.Deserialize<OrderCommand>(Encoding.UTF8.GetString(eventArgs.Body.Span));
+                if (cmd is null) { channel.BasicAck(eventArgs.DeliveryTag, false); return; }
 
                 using var scope = serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var quotes = scope.ServiceProvider.GetRequiredService<LastQuotesCache>();
+                var port = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
                 await using var tx = await db.Database.BeginTransactionAsync(stoppingToken);
-                var portfolio = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
-                var quotesCache = scope.ServiceProvider.GetRequiredService<LastQuotesCache>();
 
-                if (await db.Set<ProcessedOrder>().FindAsync(new object[] { command.OrderId }, stoppingToken) is not null)
+                // idempotency
+                if (await db.Set<ProcessedOrder>().FindAsync(new object[] { cmd.OrderId }, stoppingToken) is not null)
+                { channel.BasicAck(eventArgs.DeliveryTag, false); return; }
+
+                // ensure order row exists as Pending
+                var ord = await db.Orders.SingleOrDefaultAsync(o => o.OrderId == cmd.OrderId, stoppingToken);
+                if (ord is null)
                 {
-                    channel.BasicAck(eventArgs.DeliveryTag, false);
-                    return;
-                }
+                    ord = new OrderEntity
+                    {
+                        OrderId = cmd.OrderId,
+                        UserId = cmd.UserId,
+                        Symbol = cmd.Symbol,
+                        Quantity = cmd.Quantity,
+                        Remaining = Math.Abs(cmd.Quantity),
+                        Type = cmd.Type,
+                        Tif = cmd.Tif,
+                        LimitPrice = cmd.LimitPrice,
+                        StopPrice = cmd.StopPrice,
+                        Status = OrderStatus.Pending,
+                        SubmittedUtc = DateTimeOffset.UtcNow
+                    };
+                    db.Orders.Add(ord);
 
-
-                if (!quotesCache.TryGet(command.Symbol, out var last))
-                {
-                    var rejOrd = await db.Orders.SingleAsync(o => o.OrderId == command.OrderId, stoppingToken);
-                    rejOrd.Status = OrderStatus.Rejected;
-                    await db.SaveChangesAsync(stoppingToken);
-
-                    var ev = new OrderRejectedEvent(rejOrd.OrderId, rejOrd.UserId, rejOrd.Symbol, rejOrd.Quantity, "No quote", DateTimeOffset.UtcNow);
+                    // outbox: accepted
                     db.Add(new OutboxMessage
                     {
-                        Type = nameof(OrderRejectedEvent),
-                        Payload = JsonSerializer.Serialize(ev)
+                        Type = nameof(OrderAcceptedEvent),
+                        Payload = JsonSerializer.Serialize(
+                            new OrderAcceptedEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, ord.SubmittedUtc))
                     });
-
-                    db.Add(new ProcessedOrder { OrderId = command.OrderId });
                     await db.SaveChangesAsync(stoppingToken);
-                    await tx.CommitAsync(stoppingToken);
-                    channel.BasicAck(eventArgs.DeliveryTag, false);
-                    return;
                 }
 
-                string? reason = null;
-                var ok = await portfolio.TryTradeAsync(command.UserId, command.Symbol, command.Quantity, last.Price, stoppingToken, r => reason = r);
-                var ord = await db.Orders.SingleAsync(o => o.OrderId == command.OrderId, stoppingToken);
-
-                if (!ok)
+                // immediate fill only for Market
+                if (cmd.Type == OrderType.Market)
                 {
-                    ord.Status = OrderStatus.Rejected;
-                    ord.FillPrice = null;
-                    ord.FilledUtc = null;
+                    if (!quotes.TryGet(cmd.Symbol, out var last))
+                    {
+                        ord.Status = OrderStatus.Rejected;
+                        db.Add(new OutboxMessage
+                        {
+                            Type = nameof(OrderRejectedEvent),
+                            Payload = JsonSerializer.Serialize(
+                                new OrderRejectedEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, "No quote", DateTimeOffset.UtcNow))
+                        });
+                    }
+                    else
+                    {
+                        string? reason = null;
+                        var ok = await port.TryTradeAsync(cmd.UserId, cmd.Symbol, cmd.Quantity, last.Price, stoppingToken, r => reason = r);
+                        if (!ok)
+                        {
+                            ord.Status = OrderStatus.Rejected;
+                            db.Add(new OutboxMessage
+                            {
+                                Type = nameof(OrderRejectedEvent),
+                                Payload = JsonSerializer.Serialize(
+                                    new OrderRejectedEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, reason ?? "Insufficient funds/quantity", DateTimeOffset.UtcNow))
+                            });
+                        }
+                        else
+                        {
+                            ord.Status = OrderStatus.Filled;
+                            ord.FillPrice = last.Price;
+                            ord.FilledUtc = DateTimeOffset.UtcNow;
+                            ord.Remaining = 0;
 
-                    var ev = new OrderRejectedEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity,
-                                                    reason ?? "Insufficient funds/quantity", DateTimeOffset.UtcNow);
-                    db.Add(new OutboxMessage { Type = nameof(OrderRejectedEvent), Payload = JsonSerializer.Serialize(ev) });
-
-                    db.Add(new ProcessedOrder { OrderId = command.OrderId });
-                    await db.SaveChangesAsync(stoppingToken);
-                    await tx.CommitAsync(stoppingToken);
-                    channel.BasicAck(eventArgs.DeliveryTag, false);
-                    return;
+                            db.Add(new OutboxMessage
+                            {
+                                Type = nameof(OrderFilledEvent),
+                                Payload = JsonSerializer.Serialize(
+                                    new OrderFilledEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, ord.FillPrice.Value, ord.FilledUtc.Value))
+                            });
+                        }
+                    }
                 }
+                // else: Limit/Stop remain Pending for the matcher
 
-                ord.Status = OrderStatus.Filled;
-                ord.FillPrice = last.Price;
-                ord.FilledUtc = DateTimeOffset.UtcNow;
-
-                var filled = new OrderFilledEvent(ord.OrderId, ord.UserId, ord.Symbol, ord.Quantity, ord.FillPrice!.Value, ord.FilledUtc!.Value);
-                db.Add(new OutboxMessage
-                {
-                    Type = nameof(OrderFilledEvent),
-                    Payload = JsonSerializer.Serialize(filled)
-                }); 
-                
-                db.Add(new ProcessedOrder { OrderId = command.OrderId });
+                db.Add(new ProcessedOrder { OrderId = cmd.OrderId });   // idempotency marker
                 await db.SaveChangesAsync(stoppingToken);
                 await tx.CommitAsync(stoppingToken);
-
                 channel.BasicAck(eventArgs.DeliveryTag, false);
             }
             catch
             {
-                channel.BasicNack(eventArgs.DeliveryTag, false, requeue: false);
+                channel.BasicNack(eventArgs.DeliveryTag, multiple: false, requeue: false);
             }
         };
         channel.BasicConsume(queue: rabitConnection.Options.Queue, autoAck: false, consumer: consumer);
