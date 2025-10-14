@@ -1,0 +1,6 @@
+services:
+  web:
+    build:
+      args: { BUILD_CONFIGURATION: Debug }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development

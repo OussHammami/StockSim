@@ -1,4 +1,5 @@
 ﻿using StockSim.Domain.Enums;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace StockSim.Infrastructure.Persistence.Entities
 {
@@ -12,6 +13,11 @@ namespace StockSim.Infrastructure.Persistence.Entities
         public DateTimeOffset SubmittedUtc { get; set; }
         public OrderStatus Status { get; set; }
         public decimal? FillPrice { get; set; }
-        public DateTimeOffset? FilledUtc { get; set; }
+        public DateTimeOffset? FilledUtc { get; set; }    
+        public OrderType Type { get; set; } = OrderType.Market;
+        public TimeInForce Tif { get; set; } = TimeInForce.Day;
+        public decimal? LimitPrice { get; set; }
+        public decimal? StopPrice  { get; set; }
+        public int Remaining { get; set; } 
     }
 }

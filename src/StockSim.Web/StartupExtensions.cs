@@ -1,7 +1,14 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
-using MudBlazor;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
 using StockSim.Infrastructure;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
@@ -13,7 +20,36 @@ namespace StockSim.Web;
 
 public static class StartupExtensions
 {
-    // Identity + EF + auth cookies
+    // ---------- Services ----------
+
+    public static WebApplicationBuilder AddObservability(this WebApplicationBuilder builder)
+    {
+        builder.Host.UseSerilog((ctx, cfg) => cfg.Enrich.FromLogContext().WriteTo.Console());
+
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService("stocksim.web", serviceVersion: "1.0.0"))
+            .WithMetrics(m => m
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddPrometheusExporter())
+            .WithTracing(t => t
+                .AddAspNetCoreInstrumentation(o =>
+                    o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
+                                     || ctx.Request.Path.StartsWithSegments("/healthz")
+                                     || ctx.Request.Path.StartsWithSegments("/readyz")))
+                .AddHttpClientInstrumentation(o =>
+                {
+                    o.EnrichWithHttpRequestMessage = (act, req) =>
+                    {
+                        if (req.RequestUri?.Host == "marketfeed")
+                            act?.SetTag("peer.service", "stocksim.marketfeed");
+                    };
+                })
+                .AddSource("StockSim.UI", "StockSim.Orders")
+                .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
+        return builder;
+    }
+
     public static IServiceCollection AddAppIdentity(this IServiceCollection services, IConfiguration cfg)
     {
         services.AddCascadingAuthenticationState();
@@ -25,9 +61,7 @@ public static class StartupExtensions
         {
             o.DefaultScheme = IdentityConstants.ApplicationScheme;
             o.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-        })
-        .AddIdentityCookies();
-
+        }).AddIdentityCookies();
 
         services.AddDatabaseDeveloperPageExceptionFilter();
 
@@ -44,42 +78,75 @@ public static class StartupExtensions
         return services;
     }
 
-    // Domain services: portfolio, RabbitMQ, quotes cache, MarketFeed client
     public static IServiceCollection AddDomainServices(this IServiceCollection services, IConfiguration cfg)
     {
+        services.AddInfrastructure(cfg);
         services.AddHostedService<OrderConsumer>();
         services.AddHostedService<OutboxDispatcher>();
-
-        services.AddInfrastructure(cfg);
         services.AddSingleton<LastQuotesCache>();
+
         services.AddHealthChecks()
-        .AddDbContextCheck<ApplicationDbContext>("db", tags: new[] { "ready" })
-        .AddCheck<RabbitHealthCheck>("rabbit", tags: new[] { "ready" });
+            .AddDbContextCheck<ApplicationDbContext>("db", tags: new[] { "ready" })
+            .AddCheck<RabbitHealthCheck>("rabbit", tags: new[] { "ready" });
 
         services.AddHttpClient("MarketFeed", (sp, client) =>
         {
-            var baseUrl = cfg["MarketFeed:BaseUrl"] ?? "https://localhost:7173";
+            var baseUrl = cfg["MarketFeed:BaseUrl"] ?? "http://localhost:8081";
             client.BaseAddress = new Uri(baseUrl);
         });
 
         return services;
     }
 
-    // UI framework
     public static IServiceCollection AddUiServices(this IServiceCollection services)
     {
         services.AddMudServices(o =>
         {
-            o.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
+            o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
             o.SnackbarConfiguration.VisibleStateDuration = 2500;
         });
         services.AddSignalR();
-
         return services;
     }
 
-    // Middleware pipeline
-    public static WebApplication UseAppPipeline(this WebApplication app)
+    public static IServiceCollection AddSecurity(this IServiceCollection services, IWebHostEnvironment env)
+    {
+        services.ConfigureApplicationCookie(o =>
+        {
+            o.Cookie.Name = ".stocksim.auth";
+            o.Cookie.HttpOnly = true;
+            o.Cookie.SameSite = SameSiteMode.Lax;
+            o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+            o.SlidingExpiration = true;
+            o.ExpireTimeSpan = TimeSpan.FromHours(8);
+            o.LoginPath = "/Account/Login";
+            o.AccessDeniedPath = "/Account/AccessDenied";
+        });
+
+        services.AddAntiforgery(o =>
+        {
+            o.Cookie.Name = ".stocksim.af";
+            o.Cookie.HttpOnly = true;
+            o.Cookie.SameSite = SameSiteMode.Strict;
+            o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+        });
+
+        services.AddRateLimiter(o =>
+        {
+            o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            o.AddFixedWindowLimiter("global", opt =>
+            {
+                opt.PermitLimit = 300;
+                opt.Window = TimeSpan.FromMinutes(1);
+                opt.QueueLimit = 0;
+            });
+        });
+        return services;
+    }
+
+    // ---------- Pipeline + endpoints ----------
+
+    public static WebApplication UseRequestPipeline(this WebApplication app)
     {
         if (app.Environment.IsDevelopment())
         {
@@ -91,10 +158,50 @@ public static class StartupExtensions
             app.UseHsts();
             app.UseHttpsRedirection();
         }
+
+        app.UseStaticFiles();
+        app.UseSerilogRequestLogging();
+        app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
-        app.UseStaticFiles();
         app.UseAntiforgery();
+        app.UseSecurityHeaders();
+        return app;
+    }
+
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+        => app.Use(async (ctx, next) =>
+        {
+            ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            ctx.Response.Headers["X-Frame-Options"] = "DENY";
+            ctx.Response.Headers["Referrer-Policy"] = "no-referrer";
+            ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+            ctx.Response.Headers["Content-Security-Policy"] =
+                "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
+                "script-src 'self'; connect-src 'self' ws: wss:;";
+            await next();
+        });
+
+    public static IEndpointRouteBuilder MapAppEndpoints<TRoot, THub>(this IEndpointRouteBuilder app)
+        where TRoot : class
+        where THub : Hub
+    {
+        app.MapPrometheusScrapingEndpoint("/metrics");
+        app.MapHealthChecks("/healthz");
+        app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") });
+        app.MapHub<THub>("/hubs/orders");
+        app.MapRazorComponents<TRoot>().AddInteractiveServerRenderMode();
+        app.MapAdditionalIdentityEndpoints();
+        return app;
+    }
+
+    // ---------- Utilities ----------
+
+    public static WebApplication ApplyMigrations<TContext>(this WebApplication app) where TContext : DbContext
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<TContext>();
+        db.Database.Migrate();
         return app;
     }
 }

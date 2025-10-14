@@ -52,6 +52,21 @@ public sealed class OutboxDispatcher(IServiceProvider sp, ILogger<OutboxDispatch
                             e.TimeUtc
                         }, ct);
                     }
+                    else if (m.Type == nameof(OrderAcceptedEvent))
+                    {
+                        var e = JsonSerializer.Deserialize<OrderAcceptedEvent>(m.Payload)!;
+                        await hub.Clients.Group($"u:{e.UserId}").SendAsync("order", new
+                        {
+                            e.OrderId,
+                            e.UserId,
+                            e.Symbol,
+                            e.Quantity,
+                            Status = "Pending",
+                            FillPrice = (decimal?)null,
+                            Reason = (string?)null,
+                            e.TimeUtc
+                        }, ct);
+                    }
 
                     m.ProcessedUtc = DateTimeOffset.UtcNow;
                 }

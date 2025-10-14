@@ -9,8 +9,10 @@
 @using StockSim.Application.Abstractions
 @using StockSim.Application.Contracts.Orders
 @using StockSim.Domain.Entities
+@using StockSim.Domain.Enums
 @using StockSim.Domain.Models 
 @using StockSim.Infrastructure.Messaging
+@using StockSim.Web.Hubs
 @using StockSim.Web.Services
 @using System.Diagnostics
 @inject IPortfolioService Portfolio
@@ -35,7 +37,11 @@
         <MudItem xxl="3" lg="4" md="6" sm="12">
           <MudText Typo="Typo.h6">Trade</MudText>
           <MudTextField @bind-Value="_symbol" Label="Symbol" Immediate="true" />
-          <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" />
+          <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" /> 
+          <MudSelect T="OrderType" @bind-Value="_type" Label="Type">
+            <MudSelectItem Value="OrderType.Market">Market</MudSelectItem>
+            <MudSelectItem Value="OrderType.Limit">Limit</MudSelectItem>
+          </MudSelect>         
           <MudStack Row="true" Spacing="2" Class="mt-2">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Buy">Buy</MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Sell">Sell</MudButton>
@@ -53,6 +59,10 @@
                  @_snap.UnrealizedPnl.ToString("C")
               </MudText>
             </MudListItem>
+            @if (_type == OrderType.Limit)
+            {
+            <MudNumericField @bind-Value="_limit" Label="Limit price" />
+            }
             <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
           </MudList>
           <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
@@ -73,8 +83,13 @@
               <MudText Color="Color.Secondary">No orders.</MudText>
           </NoRecordsContent>
           <HeaderContent>
-              <MudTh>Time</MudTh><MudTh>Symbol</MudTh><MudTh align="right">Qty</MudTh>
-              <MudTh align="right">Status</MudTh><MudTh align="right">Fill</MudTh>
+              <MudTh>Time</MudTh>
+              <MudTh>Symbol</MudTh>
+              <MudTh align="right">Qty</MudTh>
+              <MudTh align="right">Status</MudTh>
+              <MudTh align="right">Fill</MudTh>
+              <MudTh align="right">Type</MudTh>
+              <MudTh align="right">Limit</MudTh>
           </HeaderContent>
           <RowTemplate>
               <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
@@ -82,6 +97,8 @@
               <MudTd Align="Right">@context.Quantity</MudTd>
               <MudTd Align="Right">@context.Status</MudTd>
               <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
+              <MudTd>@context.Type</MudTd>
+              <MudTd Align="Right">@context.LimitPrice?.ToString("F2")</MudTd>
           </RowTemplate>
           <PagerContent>
               <MudTablePager />
@@ -171,6 +188,8 @@
     private string? _error;
     private int _rowsPerPage = 5;
     private static readonly int[] _pageSizeOptions = { 5, 10, 25 };
+    private OrderType _type = OrderType.Market;
+    private decimal? _limit;
 
     protected override async Task OnInitializedAsync()
     {
@@ -192,9 +211,24 @@
             .Build();
 
 
-        _ordersHub.On<object>("order", async _ =>
+        _ordersHub.On<OrderHubMessage>("order", async msg =>
         {
-            Snackbar.Add("Order filled", Severity.Success);
+            switch (msg.Status)
+            {
+                case "Filled":
+                    Snackbar.Add($"Order filled @ {msg.FillPrice?.ToString("F2")}", Severity.Success);
+                    break;
+                case "Rejected":
+                    Snackbar.Add($"Order rejected: {msg.Reason ?? "Unknown"}", Severity.Error);
+                    break;
+                case "Pending":
+                    Snackbar.Add("Order accepted. Pending.", Severity.Info);
+                    break;
+                default:
+                    Snackbar.Add($"Order status: {msg.Status}", Severity.Info);
+                    break;
+            }
+
             _snap = await Portfolio.SnapshotAsync(uid, _last);
             await (_ordersTable?.ReloadServerData() ?? Task.CompletedTask);
             await InvokeAsync(StateHasChanged);
@@ -258,7 +292,7 @@
         var uid = await CurrentUserId();
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
 
-        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = _qty });
+        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = _qty, Type = _type, Tif = TimeInForce.Day, LimitPrice = _limit });
         Snackbar.Add("Order sent", Severity.Normal);
     }
 
@@ -271,7 +305,7 @@
         var uid = await CurrentUserId();
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
 
-        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty });
+        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty, Type = _type, Tif = TimeInForce.Day, LimitPrice = _limit });
         Snackbar.Add("Order sent", Severity.Normal);
     }
 

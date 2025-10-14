@@ -15,16 +15,20 @@ public sealed class OrderQueries(ApplicationDbContext db) : IOrderQueries
 
         var items = await q.OrderByDescending(o => o.SubmittedUtc)
             .Skip(skip).Take(take)
-            .Select(o => new Order
+            .Select(e => new Order
             {
-                OrderId = o.OrderId,
-                UserId = o.UserId,
-                Symbol = o.Symbol,
-                Quantity = o.Quantity,
-                SubmittedUtc = o.SubmittedUtc,
-                Status = (OrderStatus)o.Status,
-                FillPrice = o.FillPrice,
-                FilledUtc = o.FilledUtc
+                OrderId = e.OrderId,
+                Symbol = e.Symbol,
+                Quantity = e.Quantity,
+                Status = e.Status,
+                FillPrice = e.FillPrice,
+                SubmittedUtc = e.SubmittedUtc,
+                FilledUtc = e.FilledUtc,
+                Type = e.Type,
+                Tif = e.Tif,
+                LimitPrice = e.LimitPrice,
+                StopPrice = e.StopPrice,
+                Remaining = e.Remaining
             })
             .ToListAsync(ct);
 

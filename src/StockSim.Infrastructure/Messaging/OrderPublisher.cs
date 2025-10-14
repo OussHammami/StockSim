@@ -1,9 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using StockSim.Application.Contracts.Orders;
-using StockSim.Domain.Enums;
-using StockSim.Infrastructure.Persistence;
-using StockSim.Infrastructure.Persistence.Entities;
 using System.Text;
 using System.Text.Json;
 using System.Diagnostics;
@@ -17,22 +14,7 @@ public sealed class OrderPublisher(RabbitConnection rc, IServiceScopeFactory sco
 {
     static readonly ActivitySource Orders = new("StockSim.Orders");
     public void Publish(OrderCommand cmd)
-    {
-        using (var scope = scopeFactory.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            db.Orders.Add(new OrderEntity
-            {
-                OrderId = cmd.OrderId,
-                UserId = cmd.UserId,
-                Symbol = cmd.Symbol,
-                Quantity = cmd.Quantity,
-                SubmittedUtc = DateTimeOffset.UtcNow,
-                Status = OrderStatus.Pending
-            });
-            db.SaveChanges();
-        }
-        
+    {   
         using var act = Orders.StartActivity("orders.publish", ActivityKind.Producer);
         act?.SetTag("order.id", cmd.OrderId);
         act?.SetTag("symbol", cmd.Symbol);
