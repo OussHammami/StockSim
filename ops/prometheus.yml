@@ -1,0 +1,12 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: "web"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["web:8080"]
+  - job_name: "marketfeed"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["marketfeed:8080"]

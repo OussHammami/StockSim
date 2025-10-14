@@ -1,6 +1,8 @@
+using OpenTelemetry.Metrics;
+using Serilog;
 using StockSim.Domain.Models;
-using System.Collections.Concurrent;
 using StockSim.MarketFeed.Hubs;
+using System.Collections.Concurrent;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
@@ -9,6 +11,19 @@ builder.Services.AddSignalR();
 
 // CORS: allow the Blazor Web origin (update the port to your Web app HTTPS port)
 const string AllowWeb = "_allowWeb";
+
+builder.Host.UseSerilog((ctx, cfg) => cfg
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
+
+// OpenTelemetry metrics
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
+
 builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
     p.WithOrigins("https://localhost:7197", "http://localhost:8082")
      .AllowAnyHeader()
@@ -22,6 +37,9 @@ builder.Services.AddHostedService<PriceWorker>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+
+app.MapPrometheusScrapingEndpoint("/metrics");
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
