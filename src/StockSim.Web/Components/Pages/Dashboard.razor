@@ -12,6 +12,7 @@
 @using StockSim.Domain.Models 
 @using StockSim.Infrastructure.Messaging
 @using StockSim.Web.Services
+@using System.Diagnostics
 @inject IPortfolioService Portfolio
 @inject IHttpClientFactory HttpClientFactory
 @inject IConfiguration Config
@@ -158,6 +159,7 @@
 </MudGrid>
 
 @code {
+    static readonly ActivitySource Ui = new("StockSim.UI");
     private readonly List<Quote> _quotes = new();
     private MudTable<StockSim.Domain.Entities.Order>? _ordersTable;
     private HubConnection? _quoteshub; 
@@ -249,6 +251,9 @@
 
     private async Task Buy()
     {
+        using var act = Ui.StartActivity("ui.buy");
+        act?.SetTag("symbol", _symbol);
+        act?.SetTag("qty", _qty);
         _error = null;
         var uid = await CurrentUserId();
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
@@ -259,6 +264,9 @@
 
     private async Task Sell()
     {
+        using var act = Ui.StartActivity("ui.buy");
+        act?.SetTag("symbol", _symbol);
+        act?.SetTag("qty", _qty);
         _error = null;
         var uid = await CurrentUserId();
         if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }

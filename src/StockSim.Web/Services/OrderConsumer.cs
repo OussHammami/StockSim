@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions;
@@ -9,13 +10,15 @@ using StockSim.Domain.Models;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Entities;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 
 namespace StockSim.Web.Services;
 
-public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProvider serviceProvider, IHubContext<OrderHub> hub) : BackgroundService
+public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProvider serviceProvider) : BackgroundService
 {
+    static readonly ActivitySource Orders = new("StockSim.Orders");
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var channel = rabitConnection.Connection.CreateModel();
@@ -26,7 +29,17 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
             {
                 var json = Encoding.UTF8.GetString(eventArgs.Body.Span);
                 var command = JsonSerializer.Deserialize<OrderCommand>(json);
+
                 if (command is null) { channel.BasicAck(eventArgs.DeliveryTag, false); return; }
+
+                var parent = Propagators.DefaultTextMapPropagator.Extract(
+                    default,
+                    eventArgs.BasicProperties.Headers,
+                    (d,k) => d.TryGetValue(k, out var v) ? new[] { Encoding.UTF8.GetString((byte[])v) } : Array.Empty<string>());
+                using var act = Orders.StartActivity("orders.consume", ActivityKind.Consumer, parent.ActivityContext);
+                act?.SetTag("order.id", command.OrderId);
+                act?.SetTag("symbol", command.Symbol);
+                act?.SetTag("qty", command.Quantity);
 
                 using var scope = serviceProvider.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

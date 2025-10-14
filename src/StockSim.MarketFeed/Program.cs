@@ -1,4 +1,6 @@
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Serilog;
 using StockSim.Domain.Models;
 using StockSim.MarketFeed.Hubs;
@@ -23,6 +25,40 @@ builder.Services.AddOpenTelemetry()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddPrometheusExporter());
+
+
+builder.Services.AddOpenTelemetry()
+    .WithMetrics(m => m
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
+
+
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(rb => rb.AddService(
+        serviceName: "stocksim.web",
+        serviceVersion: "1.0.0"))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation(o =>
+        {
+            // do not trace Prometheus scrapes
+            o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
+                     || ctx.Request.Path.StartsWithSegments("/healthz")
+                     || ctx.Request.Path.StartsWithSegments("/readyz"));
+        })
+        .AddHttpClientInstrumentation(
+            o =>
+            {
+                o.EnrichWithHttpRequestMessage = (act, req) =>
+                {
+                    if (req.RequestUri?.Host == "marketfeed")
+                        act?.SetTag("peer.service", "stocksim.marketfeed");
+                };
+            })
+        .AddSource("StockSim.UI", "StockSim.Orders") 
+        .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
 
 builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
     p.WithOrigins("https://localhost:7197", "http://localhost:8082")
