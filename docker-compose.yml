@@ -64,6 +64,19 @@ services:
     depends_on:
       marketfeed:
         condition: service_started
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports: ["9090:9090"]
+    depends_on:
+      web: { condition: service_started }
+      marketfeed: { condition: service_started }
 
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports: ["3000:3000"]
+    depends_on:
+      prometheus: { condition: service_started }
 volumes:
   pgdata: {}
