@@ -7,12 +7,13 @@ using StockSim.Infrastructure.Persistence.Entities;
 
 namespace StockSim.Web.Services;
 
-public sealed class PortfolioService(ApplicationDbContext db) : IPortfolioService
+public sealed class PortfolioService(IDbContextFactory<ApplicationDbContext> factory) : IPortfolioService
 {
     private const decimal DefaultStartingCash = 100_000m;
 
     public async Task ResetAsync(string userId, CancellationToken ct = default)
     {
+        await using var db = await factory.CreateDbContextAsync(ct);
         var pf = await db.Portfolios.FindAsync([userId], ct) ?? new PortfolioEntity { UserId = userId };
         pf.Cash = DefaultStartingCash;
         var pos = await db.Positions.Where(p => p.UserId == userId).ToListAsync(ct);
@@ -27,6 +28,8 @@ public sealed class PortfolioService(ApplicationDbContext db) : IPortfolioServic
     {
         if (string.IsNullOrWhiteSpace(symbol) || qty == 0 || price <= 0) { setError?.Invoke("Invalid order."); return false; }
 
+
+        await using var db = await factory.CreateDbContextAsync(ct);
         // Portfolio: load -> tracked; if missing -> Add
         var pf = await db.Portfolios.FindAsync([userId], ct);
         var pfNew = pf is null;
@@ -77,11 +80,11 @@ public sealed class PortfolioService(ApplicationDbContext db) : IPortfolioServic
         return true;
     }
 
-
     public async Task<PortfolioSnapshot> SnapshotAsync(string userId, IReadOnlyDictionary<string, Quote> lastQuotes, CancellationToken ct = default)
-    {
-        var pf = await db.Portfolios.FindAsync([userId], ct) ?? new PortfolioEntity { UserId = userId, Cash = DefaultStartingCash };
-        var positions = await db.Positions.Where(p => p.UserId == userId).OrderBy(p => p.Symbol).ToListAsync(ct);
+    {        
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var pf = await db.Portfolios.AsNoTracking().Where(p => p.UserId == userId).FirstOrDefaultAsync(ct) ?? new PortfolioEntity { UserId = userId, Cash = DefaultStartingCash };
+        var positions = await db.Positions.AsNoTracking().Where(p => p.UserId == userId).OrderBy(p => p.Symbol).ToListAsync(ct);
 
         decimal mv = 0, upnl = 0;
         var list = positions.Select(p => new Position { Symbol = p.Symbol, Quantity = p.Quantity, AvgPrice = p.AvgPrice }).ToList();

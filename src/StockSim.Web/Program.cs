@@ -5,9 +5,6 @@ using StockSim.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// UI
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-
 // Observability (Serilog + OTel)
 builder.AddObservability();
 
