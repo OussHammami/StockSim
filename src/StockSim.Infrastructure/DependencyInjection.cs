@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using StockSim.Application.Abstractions;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
@@ -15,7 +16,20 @@ public static class DependencyInjection
         var cs = cfg.GetConnectionString("DefaultConnection")
                  ?? throw new InvalidOperationException("Missing DefaultConnection.");
         services.AddDatabaseDeveloperPageExceptionFilter();
-        services.AddDbContext<ApplicationDbContext>(o => o.UseNpgsql(cs));
+        services.AddDbContext<ApplicationDbContext>((sp, o) =>
+        {
+            var cs = cfg.GetConnectionString("DefaultConnection")!;
+            o.UseNpgsql(cs);
+            if (sp.GetRequiredService<IHostEnvironment>().IsDevelopment())
+                o.EnableSensitiveDataLogging();
+        });
+        services.AddDbContextFactory<ApplicationDbContext>((sp, o) =>
+        {
+            var cs = cfg.GetConnectionString("DefaultConnection")!;
+            o.UseNpgsql(cs);
+            if (sp.GetRequiredService<IHostEnvironment>().IsDevelopment())
+                o.EnableSensitiveDataLogging();
+        });
 
 
         services.AddScoped<IPortfolioService, PortfolioService>();

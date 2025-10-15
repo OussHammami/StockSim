@@ -190,23 +190,35 @@
     private static readonly int[] _pageSizeOptions = { 5, 10, 25 };
     private OrderType _type = OrderType.Market;
     private decimal? _limit;
-
-    protected override async Task OnInitializedAsync()
+    bool _booted;
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // 1) initial snapshot
-        var client = HttpClientFactory.CreateClient("MarketFeed");
-        var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
-        var uid = await CurrentUserId();
-        if (snap is { Length: > 0 })
+        if (!firstRender || _booted) return;
+        _booted = true;
+        try
         {
-            foreach (var q in snap) _last[q.Symbol] = q;
-            _quotes.AddRange(snap.OrderBy(q => q.Symbol));
-            _snap = await Portfolio.SnapshotAsync(uid, _last);
+            var client = HttpClientFactory.CreateClient("MarketFeed");
+            var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
+            if (snap is { Length: > 0 })
+            {
+                foreach (var q in snap) _last[q.Symbol] = q;
+                _quotes.AddRange(snap.OrderBy(q => q.Symbol));
+            }
         }
-
+        catch
+        {
+            // do not crash prerender
+            Snackbar.Add("MarketFeed unreachable. Live updates will connect when available.", Severity.Warning);
+        }
+        
+        var uid = await CurrentUserId();
+        _snap = await Portfolio.SnapshotAsync(uid, _last);
         var ordersUrl = $"{NavigationManager.BaseUri.TrimEnd('/')}/hubs/orders?userId={Uri.EscapeDataString(uid)}";
+        var inK8s = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") is not null;
+        var ordersBase = inK8s ? "http://localhost:8080" : NavigationManager.BaseUri.TrimEnd('/');
         _ordersHub = new HubConnectionBuilder()
-            .WithUrl(ordersUrl, o => { o.SkipNegotiation = true; o.Transports = HttpTransportType.WebSockets; })
+            .WithUrl($"{ordersBase}/hubs/orders?userId={Uri.EscapeDataString(uid)}")
             .WithAutomaticReconnect()
             .Build();
 

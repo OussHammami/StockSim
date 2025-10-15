@@ -6,10 +6,11 @@ using StockSim.Infrastructure.Persistence;
 
 namespace StockSim.Web.Services;
 
-public sealed class OrderQueries(ApplicationDbContext db) : IOrderQueries
+public sealed class OrderQueries(IDbContextFactory<ApplicationDbContext> factory) : IOrderQueries
 {
     public async Task<PageResult<Order>> GetPageAsync(string userId, int skip, int take, CancellationToken ct = default)
     {
+        await using var db = await factory.CreateDbContextAsync(ct);
         var q = db.Orders.Where(o => o.UserId == userId);
         var total = await q.CountAsync(ct);
 

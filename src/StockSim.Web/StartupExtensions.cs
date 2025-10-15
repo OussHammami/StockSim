@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
@@ -106,6 +107,8 @@ public static class StartupExtensions
             o.SnackbarConfiguration.VisibleStateDuration = 2500;
         });
         services.AddSignalR();
+        services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
+
         return services;
     }
 
@@ -148,6 +151,10 @@ public static class StartupExtensions
 
     public static WebApplication UseRequestPipeline(this WebApplication app)
     {
+        app.UseForwardedHeaders(new ForwardedHeadersOptions {
+            ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+            KnownNetworks = { }, KnownProxies = { }
+        });
         if (app.Environment.IsDevelopment())
         {
             app.UseMigrationsEndPoint();

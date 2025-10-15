@@ -20,6 +20,7 @@ public sealed class OutboxDispatcher(IServiceProvider sp, ILogger<OutboxDispatch
                 .Where(m => m.ProcessedUtc == null)
                 .OrderBy(m => m.OccurredUtc)
                 .Take(50)
+                .AsNoTracking()
                 .ToListAsync(ct);
 
             foreach (var m in batch)
@@ -68,7 +69,10 @@ public sealed class OutboxDispatcher(IServiceProvider sp, ILogger<OutboxDispatch
                         }, ct);
                     }
 
-                    m.ProcessedUtc = DateTimeOffset.UtcNow;
+                    var tracked = await db.Set<OutboxMessage>().FindAsync([m.Id], ct);
+                    if (tracked is null) continue;
+                    tracked.ProcessedUtc = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(ct);
                 }
                 catch (Exception ex)
                 {
@@ -76,7 +80,6 @@ public sealed class OutboxDispatcher(IServiceProvider sp, ILogger<OutboxDispatch
                     log.LogError(ex, "Outbox dispatch failed for {Id}", m.Id);
                 }
             }
-            await db.SaveChangesAsync(ct);
             await Task.Delay(500, ct);
         }
     }
