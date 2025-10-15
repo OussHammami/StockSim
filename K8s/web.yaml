@@ -1,6 +1,8 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata: { name: web, namespace: stocksim }
+metadata:
+  name: web
+  namespace: stocksim
 spec:
   replicas: 1
   selector: { matchLabels: { app: web } }
@@ -8,26 +10,42 @@ spec:
     metadata: { labels: { app: web } }
     spec:
       containers:
-        - name: web
-          image: stocksim-web:dev
-          imagePullPolicy: IfNotPresent
-          env:
-            - { name: ASPNETCORE_URLS, value: http://0.0.0.0:8080 }
-            - { name: ConnectionStrings__DefaultConnection, value: Host=postgres-postgresql;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim }
-            - { name: MarketFeed__BaseUrl, value: http://marketfeed:8080 }
-            - { name: Rabbit__Host, value: rabbitmq }
-            - { name: Rabbit__Port, value: "5672" }
-            - { name: Rabbit__User, value: stocksim }
-            - { name: Rabbit__Pass, value: stocksim }
-            - { name: Rabbit__Queue, value: stocksim.orders }
-          ports: [{ containerPort: 8080 }]
-          livenessProbe:  { httpGet: { path: /healthz, port: 8080 }, initialDelaySeconds: 10, periodSeconds: 5 }
-          readinessProbe: { httpGet: { path: /readyz, port: 8080 }, initialDelaySeconds: 10, periodSeconds: 5 }
+      - name: web
+        image: stocksim-web:k8s
+        imagePullPolicy: IfNotPresent
+        ports: [{ containerPort: 8080, name: http }]
+        env:
+        - name: ASPNETCORE_URLS
+          value: http://+:8080
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Development
+        - name: ConnectionStrings__DefaultConnection
+          value: Host=postgres-postgresql;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim;Pooling=true
+        - name: MarketFeed__BaseUrl
+          value: http://marketfeed:8080
+        - name: Rabbit__Host
+          value: rabbitmq
+        - name: Rabbit__User
+          valueFrom: { secretKeyRef: { name: rabbit-app, key: RABBIT_USER } }
+        - name: Rabbit__Password
+          valueFrom: { secretKeyRef: { name: rabbit-app, key: RABBIT_PASSWORD } }
+        readinessProbe:
+          httpGet: { path: /readyz, port: 8080 }
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet: { path: /healthz, port: 8080 }
+          initialDelaySeconds: 10
+          periodSeconds: 10
 ---
 apiVersion: v1
 kind: Service
-metadata: { name: web, namespace: stocksim }
+metadata:
+  name: web
+  namespace: stocksim
 spec:
   selector: { app: web }
-  ports: [{ name: http, port: 8080, targetPort: 8080 }]
-  type: ClusterIP
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
