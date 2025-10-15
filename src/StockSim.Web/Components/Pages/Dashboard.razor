@@ -214,9 +214,9 @@
         
         var uid = await CurrentUserId();
         _snap = await Portfolio.SnapshotAsync(uid, _last);
-        var ordersUrl = $"{NavigationManager.BaseUri.TrimEnd('/')}/hubs/orders?userId={Uri.EscapeDataString(uid)}";
         var inK8s = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") is not null;
-        var ordersBase = inK8s ? "http://localhost:8080" : NavigationManager.BaseUri.TrimEnd('/');
+        var ordersBase = inK8s ? "http://web:8080" : NavigationManager.BaseUri.TrimEnd('/');
+
         _ordersHub = new HubConnectionBuilder()
             .WithUrl($"{ordersBase}/hubs/orders?userId={Uri.EscapeDataString(uid)}")
             .WithAutomaticReconnect()
@@ -249,14 +249,8 @@
         await _ordersHub.StartAsync();
 
         // 2) live updates
-        var baseUrl = Config["MarketFeed:BaseUrl"]!;
         _quoteshub = new HubConnectionBuilder()
-            .WithUrl($"{baseUrl}/hubs/quotes", opt =>
-            {
-                // optional but robust in dev cross-origin scenarios
-                opt.SkipNegotiation = true;
-                opt.Transports = HttpTransportType.WebSockets;
-            })
+            .WithUrl("http://marketfeed:8080/hubs/quotes")
             .WithAutomaticReconnect()
             .Build();
 

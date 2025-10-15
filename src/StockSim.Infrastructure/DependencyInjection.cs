@@ -16,20 +16,9 @@ public static class DependencyInjection
         var cs = cfg.GetConnectionString("DefaultConnection")
                  ?? throw new InvalidOperationException("Missing DefaultConnection.");
         services.AddDatabaseDeveloperPageExceptionFilter();
-        services.AddDbContext<ApplicationDbContext>((sp, o) =>
-        {
-            var cs = cfg.GetConnectionString("DefaultConnection")!;
-            o.UseNpgsql(cs);
-            if (sp.GetRequiredService<IHostEnvironment>().IsDevelopment())
-                o.EnableSensitiveDataLogging();
-        });
-        services.AddDbContextFactory<ApplicationDbContext>((sp, o) =>
-        {
-            var cs = cfg.GetConnectionString("DefaultConnection")!;
-            o.UseNpgsql(cs);
-            if (sp.GetRequiredService<IHostEnvironment>().IsDevelopment())
-                o.EnableSensitiveDataLogging();
-        });
+        
+        services.AddDbContextPool<ApplicationDbContext>(o => o.UseNpgsql(cs));
+        services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs));
 
 
         services.AddScoped<IPortfolioService, PortfolioService>();

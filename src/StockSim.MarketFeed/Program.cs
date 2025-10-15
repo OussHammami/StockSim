@@ -80,6 +80,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.MapHealthChecks("/healthz");
+app.MapHealthChecks("/readyz");
 
 app.UseHttpsRedirection();
 app.UseCors(AllowWeb);

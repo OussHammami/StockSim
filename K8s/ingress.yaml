@@ -4,18 +4,20 @@ metadata:
   name: stocksim
   namespace: stocksim
   annotations:
-    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: stocksim.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend: { service: { name: web, port: { number: 8080 } } }
-    - host: marketfeed.local
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend: { service: { name: marketfeed, port: { number: 8080 } } }
+  - host: stocksim.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service: { name: web, port: { number: 8080 } }
+  - host: marketfeed.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service: { name: marketfeed, port: { number: 8080 } }
