@@ -84,6 +84,7 @@ public static class StartupExtensions
         services.AddInfrastructure(cfg);
         services.AddHostedService<OrderConsumer>();
         services.AddHostedService<OutboxDispatcher>();
+        services.AddHostedService<QuoteMatcherService>();
         services.AddSingleton<LastQuotesCache>();
 
         services.AddHealthChecks()
