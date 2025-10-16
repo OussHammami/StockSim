@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions;
@@ -67,10 +66,15 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
                     await db.SaveChangesAsync(stoppingToken);
                 }
 
-                // immediate fill only for Market
-                if (cmd.Type == OrderType.Market)
+                // Minimal matcher:
+                // - Fill immediately for Market
+                // - Fill immediately for crossing Limit (buy: last <= limit, sell: last >= limit)
+                if (cmd.Type == OrderType.Market
+                    || (cmd.Type == OrderType.Limit && cmd.LimitPrice.HasValue
+                        && TryGetLast(quotes, cmd.Symbol, out var lastForLimit)
+                        && IsCrossing(cmd.Quantity, lastForLimit.Price, cmd.LimitPrice.Value)))
                 {
-                    if (!quotes.TryGet(cmd.Symbol, out var last))
+                    if (!TryGetLast(quotes, cmd.Symbol, out var last))
                     {
                         ord.Status = OrderStatus.Rejected;
                         db.Add(new OutboxMessage
@@ -110,7 +114,7 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
                         }
                     }
                 }
-                // else: Limit/Stop remain Pending for the matcher
+                // else: non-crossing Limit/Stop remain Pending for later matching
 
                 db.Add(new ProcessedOrder { OrderId = cmd.OrderId });   // idempotency marker
                 await db.SaveChangesAsync(stoppingToken);
@@ -125,6 +129,11 @@ public sealed class OrderConsumer(RabbitConnection rabitConnection, IServiceProv
         channel.BasicConsume(queue: rabitConnection.Options.Queue, autoAck: false, consumer: consumer);
         return Task.CompletedTask;
     }
+
+    static bool TryGetLast(LastQuotesCache cache, string symbol, out Quote q) => cache.TryGet(symbol, out q);
+    static bool IsCrossing(int qty, decimal lastPrice, decimal limitPrice)
+        => qty > 0 ? lastPrice <= limitPrice   // buy: at/below limit
+                   : lastPrice >= limitPrice;  // sell: at/above limit
 }
 
 // simple in-memory last-quotes cache exposed via DI
