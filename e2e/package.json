@@ -1,0 +1,16 @@
+{
+  "name": "stocksim-e2e",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "install:browsers": "playwright install --with-deps",
+    "pretest": "wait-on http-get://localhost:8080/readyz http-get://localhost:8081/healthz http-get://localhost:8082",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.2",
+    "wait-on": "^7.0.1"
+  }
+}
