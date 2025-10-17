@@ -1,0 +1,89 @@
+name: Release - Tag and Build Versioned Images
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., v1.2.3) if not triggering via tag'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Lowercase owner
+        id: lc
+        shell: bash
+        run: |
+          echo "owner_lc=$(echo '${{ env.OWNER }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Web (versioned)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/StockSim.Web/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-web:${{ steps.ver.outputs.version }}
+
+      - name: Build and push MarketFeed (versioned)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/StockSim.MarketFeed/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-marketfeed:${{ steps.ver.outputs.version }}
+
+      - name: Build and push React (versioned)
+        uses: docker/build-push-action@v6
+        with:
+          context: src/StockSim.React
+          file: src/StockSim.React/Dockerfile
+          push: true
+          build-args: |
+            VITE_MARKETFEED_URL=http://localhost:8081
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-react:${{ steps.ver.outputs.version }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          generate_release_notes: true
