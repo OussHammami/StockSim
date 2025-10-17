@@ -13,6 +13,8 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure'
   },
+  // Ensures VS Code Test Explorer also waits/starts services
+  globalSetup: './global-setup',
   projects: [
     { name: 'chromium', use: { channel: 'chromium' } }
   ]

@@ -37,6 +37,7 @@ public sealed class PortfolioService(IDbContextFactory<ApplicationDbContext> fac
         {
             pf = new PortfolioEntity { UserId = userId, Cash = DefaultStartingCash };
             db.Portfolios.Add(pf);
+            await db.SaveChangesAsync(ct);
         }
 
         // Position: load -> tracked; if missing -> not tracked yet
