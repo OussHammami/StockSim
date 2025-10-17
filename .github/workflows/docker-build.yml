@@ -11,7 +11,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  ORG: ${{ github.repository_owner }}
+  OWNER: ${{ github.repository_owner }}
 
 jobs:
   build-and-push:
@@ -21,6 +21,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Lowercase owner for GHCR
+        id: lc
+        shell: bash
+        run: |
+          echo "owner_lc=$(echo '${{ env.OWNER }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -32,20 +38,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Derive tags
-        id: vars
-        shell: bash
-        run: |
-          SHA=${GITHUB_SHA}
-          REPO_OWNER_LOWER=$(echo "${{ env.ORG }}" | tr '[:upper:]' '[:lower:]')
-          echo "owner=${REPO_OWNER_LOWER}" >> $GITHUB_OUTPUT
-          echo "sha=${SHA}" >> $GITHUB_OUTPUT
-          if [[ "${GITHUB_REF##*/}" == "main" ]]; then
-            echo "latest_tag=true" >> $GITHUB_OUTPUT
-          else
-            echo "latest_tag=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Build and push Web
         uses: docker/build-push-action@v6
         with:
@@ -53,8 +45,8 @@ jobs:
           file: src/StockSim.Web/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner }}/stocksim-web:${{ steps.vars.outputs.sha }}
-            ${{ steps.vars.outputs.latest_tag == 'true' && format('{0}/{1}/stocksim-web:latest', env.REGISTRY, steps.vars.outputs.owner) || '' }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-web:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-web:latest
 
       - name: Build and push MarketFeed
         uses: docker/build-push-action@v6
@@ -63,8 +55,8 @@ jobs:
           file: src/StockSim.MarketFeed/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner }}/stocksim-marketfeed:${{ steps.vars.outputs.sha }}
-            ${{ steps.vars.outputs.latest_tag == 'true' && format('{0}/{1}/stocksim-marketfeed:latest', env.REGISTRY, steps.vars.outputs.owner) || '' }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-marketfeed:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-marketfeed:latest
 
       - name: Build and push React
         uses: docker/build-push-action@v6
@@ -75,5 +67,5 @@ jobs:
           build-args: |
             VITE_MARKETFEED_URL=http://localhost:8081
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.vars.outputs.owner }}/stocksim-react:${{ steps.vars.outputs.sha }}
-            ${{ steps.vars.outputs.latest_tag == 'true' && format('{0}/{1}/stocksim-react:latest', env.REGISTRY, steps.vars.outputs.owner) || '' }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-react:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-react:latest
