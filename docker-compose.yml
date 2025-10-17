@@ -63,7 +63,7 @@ services:
       context: src/StockSim.React
       dockerfile: Dockerfile
       args:
-        VITE_MARKETFEED_URL: "http://marketfeed:8081"
+        VITE_MARKETFEED_URL: "http://localhost:8081"
     ports:
       - "8082:80"
     depends_on:
