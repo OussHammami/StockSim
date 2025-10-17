@@ -30,7 +30,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       OTEL_SERVICE_NAME: stocksim.marketfeed
-    ports: ["8081:8080"]  # for browser access (Swagger, etc.)
+    ports: ["8081:8080"] 
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -62,7 +62,10 @@ services:
     build:
       context: src/StockSim.React
       dockerfile: Dockerfile
-    ports: ["8082:80"]
+      args:
+        VITE_MARKETFEED_URL: "http://marketfeed:8081"
+    ports:
+      - "8082:80"
     depends_on:
       marketfeed:
         condition: service_started

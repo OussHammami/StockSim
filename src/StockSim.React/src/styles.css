@@ -1,0 +1,131 @@
+:root {
+  --bg: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --card: #f9fafb;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --success: #16a34a;
+  --danger: #dc2626;
+
+  /* table polish */
+  --row-selected-bg: #f6faff;
+  --row-selected-text: var(--text);
+  --row-hover-bg: #f3f4f6;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0f19;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --card: #111827;
+  --border: #1f2937;
+  --primary: #60a5fa;
+  --success: #22c55e;
+  --danger: #ef4444;
+
+  /* higher-contrast selection in dark mode */
+  --row-selected-bg: #0f172a;  /* slate-900-ish */
+  --row-selected-text: #e5e7eb;
+  --row-hover-bg: #0b1220;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+input, select, button {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] button {
+  background: #0f172a;
+  color: var(--text);
+  border-color: #334155;
+}
+
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+tbody tr:hover { background: var(--row-hover-bg); }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.btn {
+  padding: 6px 10px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.btn.outline {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+
+.status {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Selected row styling with strong contrast */
+.row-selected {
+  background: var(--row-selected-bg) !important;
+  color: var(--row-selected-text);
+}
+.row-selected td {
+  color: var(--row-selected-text) !important;
+}
+.recharts-default-tooltip {
+  background: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+.recharts-tooltip-label,
+.recharts-tooltip-item { color: var(--text) !important; }
+
+/* Selected row has strong contrast in dark mode (already present) */
+.row-selected {
+  background: var(--row-selected-bg) !important;
+  color: var(--row-selected-text);
+}
+.row-selected td { color: var(--row-selected-text) !important; }
+.spark-wrap {
+  overflow: hidden;
+}
+.spark-box {
+  width: 120px;
+  height: 36px;
+  overflow: hidden;            /* important for gradient/paths */
+  margin-left: auto;           /* right-align within the cell */
+}
+.spark-cell {
+  padding-right: 8px;          /* breathing room from the table edge */
+  overflow: hidden;            /* clip anything from Recharts */
+}
