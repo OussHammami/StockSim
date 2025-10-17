@@ -10,7 +10,8 @@ RUN npm ci
 COPY . .
 
 # Build-time env for Vite (used to configure MarketFeed base URL in the frontend)
-ARG VITE_MARKETFEED_URL=http://marketfeed:8080
+# Default to localhost:8081 for browser access; compose can override as needed.
+ARG VITE_MARKETFEED_URL=http://localhost:8081
 ENV VITE_MARKETFEED_URL=$VITE_MARKETFEED_URL
 
 # Build production assets
