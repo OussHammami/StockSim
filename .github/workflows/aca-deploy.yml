@@ -37,12 +37,11 @@ jobs:
       - name: Set subscription
         run: az account set --subscription "${{ env.SUBSCRIPTION_ID }}"
 
-      - name: Ensure Container Apps CLI extension
+      - name: Ensure Container Apps CLI extension (no provider registration)
         run: |
           az extension add --name containerapp --upgrade
-          az provider register --namespace Microsoft.App
-          az provider register --namespace Microsoft.OperationalInsights
-          az provider register --namespace Microsoft.Insights
+          az version
+          az extension list -o table
 
       - name: Ensure resource group
         run: az group create -n "${{ env.RESOURCE_GROUP }}" -l "${{ env.LOCATION }}" --tags app=stocksim env=dev
