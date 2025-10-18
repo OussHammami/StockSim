@@ -205,6 +205,30 @@
                 foreach (var q in snap) _last[q.Symbol] = q;
                 _quotes.AddRange(snap.OrderBy(q => q.Symbol));
             }
+
+            // Build the SignalR hub URL from the configured MarketFeed base URL
+            var feedBase = (client.BaseAddress?.ToString().TrimEnd('/')) 
+                           ?? "http://localhost:8081"; // dev fallback
+
+            _quoteshub = new HubConnectionBuilder()
+                .WithUrl($"{feedBase}/hubs/quotes")
+                .WithAutomaticReconnect()
+                .Build();
+
+            _quoteshub.On<Quote>("quote", async q =>
+            {
+                await InvokeAsync(async () =>
+                {
+                    var i = _quotes.FindIndex(x => string.Equals(x.Symbol, q.Symbol, StringComparison.OrdinalIgnoreCase));
+                    if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
+                    Cache.Upsert(q);
+                    _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase));
+                    _last[q.Symbol] = q;
+                    await InvokeAsync(StateHasChanged);
+                });
+            });
+
+            await _quoteshub.StartAsync();
         }
         catch
         {
@@ -248,29 +272,6 @@
 
         await _ordersHub.StartAsync();
 
-        // 2) live updates
-        _quoteshub = new HubConnectionBuilder()
-            .WithUrl("http://marketfeed:8080/hubs/quotes")
-            .WithAutomaticReconnect()
-            .Build();
-
-        _quoteshub.On<Quote>("quote", async q =>
-        {
-            await InvokeAsync(async () =>
-            {
-                var i = _quotes.FindIndex(x => string.Equals(x.Symbol, q.Symbol, StringComparison.OrdinalIgnoreCase));
-                if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
-                Cache.Upsert(q);
-                _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase));
-
-                _last[q.Symbol] = q; 
-                _snap = await Portfolio.SnapshotAsync(uid, _last);
-
-                StateHasChanged();
-            });
-        });
-
-        await _quoteshub.StartAsync();
     }
 
     public async ValueTask DisposeAsync()
