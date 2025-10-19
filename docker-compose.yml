@@ -1,90 +1,124 @@
+version: "3.9"
 services:
-  postgres:
+  pg:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: stocksim
-      POSTGRES_PASSWORD: stocksim
-      POSTGRES_DB: stocksim
-    ports: ["5432:5432"]
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      POSTGRES_USER: "${POSTGRES_USER:-stocksim}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-stocksim}"
+      POSTGRES_DB: "${POSTGRES_DB:-stocksim}"
+    ports:
+      - "${PG_HOST_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL","pg_isready -U stocksim -d stocksim"]
+      test: ["CMD-SHELL","pg_isready -U ${POSTGRES_USER:-stocksim} -d ${POSTGRES_DB:-stocksim}"]
       interval: 5s
-      timeout: 3s
-      retries: 10
+      timeout: 5s
+      retries: 20
+    volumes:
+      - pg-data:/var/lib/postgresql/data
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports: ["5672:5672","15672:15672"]
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_DEFAULT_USER:-stocksim}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_DEFAULT_PASS:-stocksim}"
+    ports:
+      - "${RABBITMQ_AMQP_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT:-15672}:15672"
     healthcheck:
-      test: ["CMD","rabbitmq-diagnostics","-q","ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      test: ["CMD", "rabbitmq-diagnostics", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
 
   marketfeed:
     build:
       context: .
       dockerfile: src/StockSim.MarketFeed/Dockerfile
-    environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8080
-      OTEL_SERVICE_NAME: stocksim.marketfeed
-    ports: ["8081:8080"] 
+    container_name: marketfeed
     depends_on:
-      rabbitmq:
+      pg:
         condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:8080"
+      # If MarketFeed needs DB or Rabbit set them here; default MarketFeed is self-contained
+    ports:
+      - "${MARKETFEED_HOST_PORT:-8081}:8080"
+    healthcheck:
+      test: ["CMD-SHELL","curl -f http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   web:
     build:
       context: .
       dockerfile: src/StockSim.Web/Dockerfile
-    environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8080
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim
-      MarketFeed__BaseUrl: http://marketfeed:8080     # server-side calls use service DNS
-      Rabbit__Host: rabbitmq
-      Rabbit__Port: 5672
-      Rabbit__User: guest
-      Rabbit__Pass: guest
-      Rabbit__Queue: stocksim.orders
-      OTEL_SERVICE_NAME: stocksim.web
-    ports: ["8080:8080"]
+      args:
+        BUILD_CONFIGURATION: Release
+    container_name: stocksim-web
     depends_on:
-      postgres:
+      pg:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
       marketfeed:
-        condition: service_started
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://0.0.0.0:8080"
+      # Web config to point at other services in the compose network
+      MarketFeed__BaseUrl: "http://marketfeed:8080"
+      ConnectionStrings__DefaultConnection: "Host=pg;Port=5432;Database=${POSTGRES_DB:-stocksim};Username=${POSTGRES_USER:-stocksim};Password=${POSTGRES_PASSWORD:-stocksim};Ssl Mode=Disable"
+      Rabbit__Host: "rabbitmq"
+      Rabbit__Port: "5672"
+      Rabbit__User: "${RABBITMQ_DEFAULT_USER:-stocksim}"
+      Rabbit__Pass: "${RABBITMQ_DEFAULT_PASS:-stocksim}"
+    ports:
+      - "${WEB_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL","curl -f http://localhost:8080/healthz || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   react:
     build:
       context: src/StockSim.React
       dockerfile: Dockerfile
       args:
-        VITE_MARKETFEED_URL: "http://localhost:8081"
-    ports:
-      - "8082:80"
+        VITE_MARKETFEED_URL: "http://marketfeed:8080"
+    container_name: stocksim-react
     depends_on:
       marketfeed:
-        condition: service_started
-  prometheus:
-    image: prom/prometheus:v2.55.0
-    volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports: ["9090:9090"]
-    depends_on:
-      web: { condition: service_started }
-      marketfeed: { condition: service_started }
+        condition: service_healthy
+    environment:
+      VITE_MARKETFEED_URL: "http://marketfeed:8080"
+    ports:
+      - "${REACT_HOST_PORT:-3000}:80"
+    healthcheck:
+      test: ["CMD-SHELL","curl -f http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  grafana:
-    image: grafana/grafana:11.2.0
-    ports: ["3000:3000"]
+  seed:
+    image: postgres:16-alpine
+    container_name: stocksim-seed
     depends_on:
-      prometheus: { condition: service_started }
-  zipkin:
-    image: openzipkin/zipkin:2.24
-    ports: ["9411:9411"]
+      web:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: "${POSTGRES_PASSWORD:-stocksim}"
+      PGHOST: "pg"
+      PGPORT: "5432"
+      PGUSER: "${POSTGRES_USER:-stocksim}"
+      PGDATABASE: "${POSTGRES_DB:-stocksim}"
+    volumes:
+      - ./demo/seed:/seed:ro
+    entrypoint: [ "/bin/sh", "/seed/seed.sh" ]
+
 volumes:
-  pgdata: {}
+  pg-data:
