@@ -78,7 +78,7 @@ jobs:
         shell: bash
         run: |
           az containerapp up --name pg --resource-group "${{ env.RESOURCE_GROUP }}" --environment "${{ env.ENV_NAME }}" --image "postgres:16-alpine" --target-port 5432 --ingress internal --env-vars POSTGRES_USER=stocksim POSTGRES_PASSWORD=stocksim POSTGRES_DB=stocksim
-          az containerapp ingress set -g "${{ env.RESOURCE_GROUP }}" -n pg --ingress internal --transport tcp --target-port 5432 --exposed-port 5432
+          az containerapp ingress enable -g "${{ env.RESOURCE_GROUP }}" -n pg --type internal --transport tcp --target-port 5432 --exposed-port 5432
           echo "fqdn=$(az containerapp show -g '${{ env.RESOURCE_GROUP }}' -n pg --query 'properties.configuration.ingress.fqdn' -o tsv)" >> $GITHUB_OUTPUT
 
       # Internal RabbitMQ with TCP ingress on 5672
@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           az containerapp up --name rabbitmq --resource-group "${{ env.RESOURCE_GROUP }}" --environment "${{ env.ENV_NAME }}" --image "rabbitmq:3-management" --target-port 5672 --ingress internal
-          az containerapp ingress set -g "${{ env.RESOURCE_GROUP }}" -n rabbitmq --ingress internal --transport tcp --target-port 5672 --exposed-port 5672
+          az containerapp ingress enable -g "${{ env.RESOURCE_GROUP }}" -n rabbitmq --type internal --transport tcp --target-port 5672 --exposed-port 5672
           echo "fqdn=$(az containerapp show -g '${{ env.RESOURCE_GROUP }}' -n rabbitmq --query 'properties.configuration.ingress.fqdn' -o tsv)" >> $GITHUB_OUTPUT
 
       # Public Web and correct env wiring
@@ -100,7 +100,7 @@ jobs:
           PG="${{ steps.pg.outputs.fqdn }}"
           RABBIT="${{ steps.rabbit.outputs.fqdn }}"
           FEED="${{ steps.feed.outputs.fqdn }}"
-          az containerapp up --name web --resource-group "${{ env.RESOURCE_GROUP }}" --environment "${{ env.ENV_NAME }}" --image "$IMG" --target-port 8080 --ingress external --env-vars ASPNETCORE_URLS="http://0.0.0.0:8080" ASPNETCORE_ENVIRONMENT="Development" ConnectionStrings__DefaultConnection="Host=$PG;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim;Ssl Mode=Disable;Timeout=15;Command Timeout=30;Keepalive=30;Tcp Keepalive=true" MarketFeed__BaseUrl="https://$FEED" Rabbit__Host="$RABBIT" Rabbit__Port="5672" Rabbit__User="guest" Rabbit__Pass="guest" Rabbit__Queue="stocksim.orders" OTEL_SERVICE_NAME="stocksim.web"
+          az containerapp up --name web --resource-group "${{ env.RESOURCE_GROUP }}" --environment "${{ env.ENV_NAME }}" --image "$IMG" --target-port 8080 --ingress external --env-vars ASPNETCORE_URLS="http://0.0.0.0:8080" ConnectionStrings__DefaultConnection="Host=$PG;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim;Ssl Mode=Disable;Timeout=15;Command Timeout=30;Keepalive=30;Tcp Keepalive=true" Rabbit__Host="$RABBIT" Rabbit__Port="5672" MarketFeed__BaseUrl="https://$FEED"
           echo "fqdn=$(az containerapp show -g '${{ env.RESOURCE_GROUP }}' -n web --query 'properties.configuration.ingress.fqdn' -o tsv)" >> $GITHUB_OUTPUT
 
       - name: Configure web health checks
