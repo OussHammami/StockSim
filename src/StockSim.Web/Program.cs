@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Web;
@@ -22,5 +23,11 @@ app.ApplyMigrations<ApplicationDbContext>();
 // Pipeline + endpoints
 app.UseRequestPipeline();
 app.MapAppEndpoints<App, OrderHub>();
+app.MapPost("/admin/reset-demo", async (ApplicationDbContext db) =>
+{
+    await db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"Orders\",\"Positions\",\"Portfolios\",\"OutboxMessages\" RESTART IDENTITY CASCADE;");
+    return Results.Ok();
+}).RequireAuthorization(policy => policy.RequireRole("Admin"));
+
 
 app.Run();
