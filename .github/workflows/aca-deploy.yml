@@ -106,12 +106,15 @@ jobs:
       - name: Configure web health probes
         shell: bash
         run: |
-          CONTAINER=$(az containerapp show -g "${{ env.RESOURCE_GROUP }}" -n web --query 'properties.template.containers[0].name' -o tsv)
+          RG="${{ env.RESOURCE_GROUP }}"; APP="web"
+          CONTAINER=$(az containerapp show -g "$RG" -n "$APP" --query 'properties.template.containers[0].name' -o tsv)
+          IMAGE=$(az containerapp show -g "$RG" -n "$APP" --query 'properties.template.containers[0].image' -o tsv)
           cat > probes.yaml <<EOF
           properties:
             template:
               containers:
               - name: ${CONTAINER}
+                image: ${IMAGE}
                 probes:
                 - type: liveness
                   httpGet:
@@ -130,7 +133,7 @@ jobs:
                   timeoutSeconds: 5
                   failureThreshold: 3
           EOF
-          az containerapp update -g "${{ env.RESOURCE_GROUP }}" -n web --yaml probes.yaml
+          az containerapp update -g "$RG" -n "$APP" --yaml probes.yaml
 
       - name: Output endpoints
         shell: bash
