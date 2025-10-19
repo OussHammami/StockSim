@@ -139,11 +139,7 @@ jobs:
               Rabbit__Queue="stocksim.orders" \
               OTEL_SERVICE_NAME="stocksim.web"
           echo "fqdn=$(az containerapp show -g '${{ env.RESOURCE_GROUP }}' -n web --query 'properties.configuration.ingress.fqdn' -o tsv)" >> $GITHUB_OUTPUT
-      - name: Set health checks
-        run: |
-          az containerapp ingress healthcheck set --name web --resource-group ${{ env.RESOURCE_GROUP }} --probe-type liveness --path /healthz --port 8080 --interval 15 --timeout 5 --unhealthy-threshold 3
-          az containerapp ingress healthcheck set --name web --resource-group ${{ env.RESOURCE_GROUP }} --probe-type readiness --path /readyz --port 8080 --interval 15 --timeout 5 --unhealthy-threshold 3
-
+      
       - name: Output endpoints
         shell: bash
         run: |
