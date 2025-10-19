@@ -10,6 +10,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using Polly;
 using StockSim.Infrastructure;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
@@ -209,7 +210,10 @@ public static class StartupExtensions
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TContext>();
-        db.Database.Migrate();
+        var retry = Policy
+            .Handle<Exception>()
+            .WaitAndRetry(5, i => TimeSpan.FromSeconds(Math.Pow(2, i)));
+        retry.Execute(() => db.Database.Migrate());
         return app;
     }
 }

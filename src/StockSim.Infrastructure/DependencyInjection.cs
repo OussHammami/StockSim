@@ -17,8 +17,22 @@ public static class DependencyInjection
                  ?? throw new InvalidOperationException("Missing DefaultConnection.");
         services.AddDatabaseDeveloperPageExceptionFilter();
         
-        services.AddDbContextPool<ApplicationDbContext>(o => o.UseNpgsql(cs));
-        services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs));
+        services.AddDbContextPool<ApplicationDbContext>(o => o.UseNpgsql(cs, npg =>
+        {
+            npg.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null);
+            npg.CommandTimeout(30);
+        }));
+        services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs, npg =>
+        {
+            npg.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorCodesToAdd: null);
+            npg.CommandTimeout(30);
+        }));
 
 
         services.AddScoped<IPortfolioService, PortfolioService>();
