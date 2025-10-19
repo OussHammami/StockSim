@@ -1,5 +1,6 @@
 ﻿@using MudBlazor
 @inherits Microsoft.AspNetCore.Components.LayoutComponentBase
+@inject StockSim.Web.Services.HubStatusService HubStatus
 
 <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" />
 <MudDialogProvider />
@@ -15,6 +16,9 @@
 
         <div class="p-2">            
             <MudSwitch @bind-Value="_isDarkMode" Color="Color.Primary" Class="ma-4" T="bool" Label="Toggle Light/Dark Mode" />
+            <MudChip T="string" Color="@(HubStatus.Connected ? Color.Success : Color.Error)" Variant="Variant.Outlined">
+                @(HubStatus.Connected ? "Live" : "Disconnected")
+            </MudChip>
         </div>
         <article class="content px-4">
             @Body

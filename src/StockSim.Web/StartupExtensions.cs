@@ -82,6 +82,9 @@ public static class StartupExtensions
     public static IServiceCollection AddDomainServices(this IServiceCollection services, IConfiguration cfg)
     {
         services.AddInfrastructure(cfg);
+        services.Configure<DemoOptions>(cfg.GetSection("DEMO"));
+        services.AddHostedService<DemoSeedHostedService>();
+        services.AddScoped<HubStatusService>();
         services.AddHostedService<OrderConsumer>();
         services.AddHostedService<OutboxDispatcher>();
         services.AddHostedService<QuoteMatcherService>();
