@@ -6,8 +6,7 @@ services:
       POSTGRES_PASSWORD: stocksim
       POSTGRES_DB: stocksim
     ports: ["5432:5432"]
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+    volumes: [ "pgdata:/var/lib/postgresql/data" ]
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U stocksim -d stocksim"]
       interval: 5s
@@ -23,68 +22,62 @@ services:
       timeout: 3s
       retries: 10
 
+  otelcol:
+    image: otel/opentelemetry-collector:0.106.1
+    command: ["--config=/etc/otelcol-config.yaml"]
+    volumes: ["./ops/otelcol.yaml:/etc/otelcol-config.yaml:ro"]
+
+  zipkin:
+    image: openzipkin/zipkin:2.24
+    ports: ["9411:9411"]
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes: ["./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports: ["3000:3000"]
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      prometheus: { condition: service_started }
+
   marketfeed:
     build:
       context: .
       dockerfile: src/StockSim.MarketFeed/Dockerfile
     environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8080
-      OTEL_SERVICE_NAME: stocksim.marketfeed
-    ports: ["8081:8080"] 
+      ASPNETCORE_URLS: http://+:8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+    ports: ["8081:8081"]
     depends_on:
-      rabbitmq:
-        condition: service_healthy
+      rabbitmq: { condition: service_healthy }
 
   web:
     build:
       context: .
       dockerfile: src/StockSim.Web/Dockerfile
+    env_file: [.env]
     environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8080
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim
-      MarketFeed__BaseUrl: http://marketfeed:8080     # server-side calls use service DNS
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
+      MarketFeed__BaseUrl: ${MarketFeed__BaseUrl}
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
-      Rabbit__User: guest
-      Rabbit__Pass: guest
-      Rabbit__Queue: stocksim.orders
-      OTEL_SERVICE_NAME: stocksim.web
+      DEMO__SEED: ${DEMO__SEED}
+      DEMO__AdminEmail: ${DEMO__AdminEmail}
+      DEMO__AdminPassword: ${DEMO__AdminPassword}
+      DEMO__UserEmail: ${DEMO__UserEmail}
+      DEMO__UserPassword: ${DEMO__UserPassword}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
     ports: ["8080:8080"]
     depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      marketfeed:
-        condition: service_started
-  react:
-    build:
-      context: src/StockSim.React
-      dockerfile: Dockerfile
-      args:
-        VITE_MARKETFEED_URL: "http://localhost:8081"
-    ports:
-      - "8082:80"
-    depends_on:
-      marketfeed:
-        condition: service_started
-  prometheus:
-    image: prom/prometheus:v2.55.0
-    volumes:
-      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports: ["9090:9090"]
-    depends_on:
-      web: { condition: service_started }
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
       marketfeed: { condition: service_started }
 
-  grafana:
-    image: grafana/grafana:11.2.0
-    ports: ["3000:3000"]
-    depends_on:
-      prometheus: { condition: service_started }
-  zipkin:
-    image: openzipkin/zipkin:2.24
-    ports: ["9411:9411"]
 volumes:
   pgdata: {}
