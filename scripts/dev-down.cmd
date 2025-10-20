@@ -1,2 +1,2 @@
 @echo off
-bash "%~dp0dev-down.sh"
+docker compose down -v
