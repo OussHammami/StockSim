@@ -32,7 +32,7 @@ public static class StartupExtensions
             .WithMetrics(m => m
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddPrometheusExporter())
+                .AddOtlpExporter())
             .WithTracing(t => t
                 .AddAspNetCoreInstrumentation(o =>
                     o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
@@ -47,7 +47,8 @@ public static class StartupExtensions
                     };
                 })
                 .AddSource("StockSim.UI", "StockSim.Orders")
-                .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
+                .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans"))
+                .AddOtlpExporter());
         return builder;
     }
 
@@ -71,10 +72,12 @@ public static class StartupExtensions
             o.SignIn.RequireConfirmedAccount = false;
             o.User.RequireUniqueEmail = true;
         })
+        .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<ApplicationDbContext>()
         .AddSignInManager()
         .AddDefaultTokenProviders();
-
+        
+        services.AddAuthorization();
         services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
         return services;
     }

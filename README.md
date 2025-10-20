@@ -8,9 +8,17 @@ Blazor Server app with Identity + MudBlazor. Market feed via SignalR. RabbitMQ o
 
 **Prereqs:** Docker Desktop 4.x+
 
-```bash
+### Start (Windows)
+
+```powershell
 # from repo root
-chmod +x scripts/dev-up.sh scripts/dev-down.sh  # on macOS/Linux
+scripts\\dev-up.cmd
+```
+
+### Start (macOS/Linux)
+
+```bash
+chmod +x scripts/dev-up.sh scripts/dev-down.sh  # first time only
 ./scripts/dev-up.sh
 ```
 
@@ -18,6 +26,7 @@ Open:
 
 * Web UI: [http://localhost:8080](http://localhost:8080)
 * Market Feed: [http://localhost:8081](http://localhost:8081)
+* React Charts: [http://localhost:5173](http://localhost:5173)
 * RabbitMQ UI: [http://localhost:15672](http://localhost:15672)  (guest/guest)
 * Grafana: [http://localhost:3000](http://localhost:3000)        (admin/admin by default image)
 * Prometheus: [http://localhost:9090](http://localhost:9090)
@@ -45,15 +54,25 @@ Login:
 
 ## Ports
 
-| Component   | URL                      |
-| ----------- | ------------------------ |
-| Web         | `http://localhost:8080`  |
-| Market Feed | `http://localhost:8081`  |
-| PostgreSQL  | `localhost:5432`         |
-| RabbitMQ UI | `http://localhost:15672` |
-| Prometheus  | `http://localhost:9090`  |
-| Grafana     | `http://localhost:3000`  |
-| Zipkin      | `http://localhost:9411`  |
+| Component    | URL                      |
+| ------------ | ------------------------ |
+| Web          | `http://localhost:8080`  |
+| Market Feed  | `http://localhost:8081`  |
+| React Charts | `http://localhost:5173`  |
+| PostgreSQL   | `localhost:5432`         |
+| RabbitMQ UI  | `http://localhost:15672` |
+| Prometheus   | `http://localhost:9090`  |
+| Grafana      | `http://localhost:3000`  |
+| Zipkin       | `http://localhost:9411`  |
+
+--------------|--------------------------|
+| Web          | `http://localhost:8080` |
+| Market Feed  | `http://localhost:8081` |
+| PostgreSQL   | `localhost:5432`         |
+| RabbitMQ UI  | `http://localhost:15672` |
+| Prometheus   | `http://localhost:9090`  |
+| Grafana      | `http://localhost:3000`  |
+| Zipkin       | `http://localhost:9411`  |
 
 ---
 
@@ -82,6 +101,10 @@ ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=stocksim;U
 MarketFeed__BaseUrl=http://marketfeed:8081
 Rabbit__Host=rabbitmq
 Rabbit__Port=5672
+
+# React build-time
+VITE_QUOTES_HUB_URL=http://localhost:8081/hubs/quotes
+VITE_API_BASE_URL=http://localhost:8080
 
 DEMO__SEED=true
 DEMO__AdminEmail=admin@demo.local
