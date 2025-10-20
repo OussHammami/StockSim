@@ -56,6 +56,20 @@ services:
     depends_on:
       rabbitmq: { condition: service_healthy }
 
+  react:
+    build:
+      context: .
+      dockerfile: src/StockSim.React/Dockerfile
+    env_file: [.env]
+    environment:
+      # Used by Vite at build time; adjust to your hub path
+      VITE_QUOTES_HUB_URL: http://localhost:8081/hubs/quotes
+      VITE_API_BASE_URL: http://localhost:8080
+    ports: ["5173:80"]   # nginx in container listens on 80
+    depends_on:
+      marketfeed: { condition: service_started }
+      web:        { condition: service_started }
+        
   web:
     build:
       context: .
@@ -64,7 +78,7 @@ services:
     environment:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
-      MarketFeed__BaseUrl: ${MarketFeed__BaseUrl}
+      MarketFeed__BaseUrl: http://marketfeed:8081
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
       DEMO__SEED: ${DEMO__SEED}
