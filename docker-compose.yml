@@ -58,8 +58,8 @@ services:
 
   react:
     build:
-      context: .
-      dockerfile: src/StockSim.React/Dockerfile
+      context: ./src/StockSim.React
+      dockerfile: Dockerfile
     env_file: [.env]
     environment:
       # Used by Vite at build time; adjust to your hub path
