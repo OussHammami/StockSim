@@ -61,7 +61,7 @@ builder.Services.AddOpenTelemetry()
         .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
 
 builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
-    p.WithOrigins("https://localhost:7197", "http://localhost:8082")
+    p.WithOrigins("http://localhost:8080", "http://localhost:5173")
      .AllowAnyHeader()
      .AllowAnyMethod()
      .AllowCredentials()));

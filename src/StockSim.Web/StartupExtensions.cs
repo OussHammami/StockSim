@@ -32,7 +32,8 @@ public static class StartupExtensions
             .WithMetrics(m => m
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
-                .AddOtlpExporter())
+                .AddOtlpExporter()
+                .AddPrometheusExporter())
             .WithTracing(t => t
                 .AddAspNetCoreInstrumentation(o =>
                     o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
