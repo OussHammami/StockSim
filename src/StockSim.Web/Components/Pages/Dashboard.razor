@@ -24,6 +24,7 @@
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
 @inject IOrderQueries OrderQueries
+@inject StockSim.Web.Hubs.HubStatusService HubStatus
 
 <MudSnackbarProvider />
 <MudPopoverProvider />
@@ -145,6 +146,12 @@
   <MudItem xxl="4" lg="4" md="12" sm="12">
     <MudPaper Class="p-3 mb-3">
       <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
+        
+        <MudChip T="string"
+         Color="@(HubStatus.Connected ? Color.Success : Color.Error)"
+         Variant="Variant.Outlined">
+            @(HubStatus.Connected ? "Live" : "Disconnected")
+        </MudChip>
 
       @if (_quotes.Count == 0)
       {
@@ -190,12 +197,17 @@
     private static readonly int[] _pageSizeOptions = { 5, 10, 25 };
     private OrderType _type = OrderType.Market;
     private decimal? _limit;
-    bool _booted;
+    private bool _booted;
+    private Action<bool>? _onHubChanged;
     
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || _booted) return;
         _booted = true;
+        
+        _onHubChanged= _ => InvokeAsync(StateHasChanged);
+        HubStatus.Changed += _onHubChanged;
+        await HubStatus.EnsureAsync();
         try
         {
             var client = HttpClientFactory.CreateClient("MarketFeed");
@@ -271,15 +283,15 @@
         });
 
         await _ordersHub.StartAsync();
-
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_quoteshub is not null)
-            await _quoteshub.DisposeAsync();
-        if (_ordersHub is not null) 
-            await _ordersHub.DisposeAsync();
+        if (_onHubChanged is not null)
+            HubStatus.Changed -= _onHubChanged;
+
+        if (_quoteshub is not null) await _quoteshub.DisposeAsync();
+        if (_ordersHub is not null) await _ordersHub.DisposeAsync();
     }
 
     private async Task<string> CurrentUserId()

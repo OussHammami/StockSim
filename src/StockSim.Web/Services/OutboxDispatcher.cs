@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using StockSim.Application.Contracts.Orders;
-using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Entities;
+using StockSim.Web.Hubs;
 using System.Text.Json;
 
 public sealed class OutboxDispatcher(IServiceProvider sp, ILogger<OutboxDispatcher> log) : BackgroundService

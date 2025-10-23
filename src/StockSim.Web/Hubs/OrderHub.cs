@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.Client;
 
-namespace StockSim.Infrastructure.Messaging
+namespace StockSim.Web.Hubs
 {
     public sealed class OrderHub : Hub
     {

@@ -1,32 +1,96 @@
 ﻿@using MudBlazor
+@using StockSim.Web.Components.Shared
 @inherits Microsoft.AspNetCore.Components.LayoutComponentBase
-@inject StockSim.Web.Services.HubStatusService HubStatus
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor Http
+@inject IThemePrefService ThemePref
 
-<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="_theme" />
+<MudThemeProvider IsDarkMode="ThemePref.Get(Http.HttpContext!)" Theme="_theme" />
 <MudDialogProvider />
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
+<MudLayout>
+
+  <!-- TOP BAR -->
+  <MudAppBar Color="Color.Surface" Elevation="0">
+    <MudText Typo="Typo.h6" Class="mr-4">StockSim</MudText>
+    <MudSpacer />
+    <ThemeToggleIsland /> 
+  </MudAppBar>
+
+  <!-- SIDE NAV -->
+  <MudDrawer Open="true" Variant="DrawerVariant.Mini" Elevation="0">
+    <NavMenu /> 
+  </MudDrawer>
+
+  <!-- PAGE BODY -->
+  <MudMainContent>
+    <div class="p-2">
+      @Body
     </div>
+  </MudMainContent>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <div class="p-2">            
-            <MudSwitch @bind-Value="_isDarkMode" Color="Color.Primary" Class="ma-4" T="bool" Label="Toggle Light/Dark Mode" />
-            <MudChip T="string" Color="@(HubStatus.Connected ? Color.Success : Color.Error)" Variant="Variant.Outlined">
-                @(HubStatus.Connected ? "Live" : "Disconnected")
-            </MudChip>
-        </div>
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+</MudLayout>
 
 @code {
-    private MudTheme _theme = new();
-    private bool _isDarkMode;
+    private MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            // Accents
+            Primary = "#1D4ED8",                 // strong blue
+            PrimaryContrastText = "#FFFFFF",
+            Secondary = "#EA580C",               // vivid orange
+            SecondaryContrastText = "#FFFFFF",
+            Info = "#0891B2",
+            Success = "#16A34A",
+            Warning = "#D97706",
+            Error = "#DC2626",
+
+            // Surfaces
+            Background = "#F5F7FA",              // light cool gray
+            Surface = "#FFFFFF",                 // cards
+            AppbarBackground = "#0F172A",        // near-black header
+            AppbarText = "#F8FAFC",
+            DrawerBackground = "#F1F5F9",
+            DrawerText = "#0F172A",
+
+            // Text + chrome
+            TextPrimary = "#0B1220",
+            TextSecondary = "#334155",
+            ActionDefault = "#0F172A",
+            ActionDisabled = "#94A3B8",
+            ActionDisabledBackground = "#E5E7EB",
+            Divider = "#CBD5E1",                 // clear edges
+            LinesDefault = "#CBD5E1",
+            TableLines = "#E2E8F0"
+        },
+        PaletteDark = new PaletteDark
+        {
+            // Accents
+            Primary = "#3B82F6",                 // bright blue
+            PrimaryContrastText = "#0A0F1E",
+            Secondary = "#F59E0B",               // warm contrast
+            SecondaryContrastText = "#0A0F1E",
+            Info = "#06B6D4",
+            Success = "#22C55E",
+            Warning = "#F59E0B",
+            Error = "#F43F5E",
+
+            // Surfaces
+            Background = "#0A0F1E",              // deep navy/near-black
+            Surface = "#111827",                 // raised cards
+            AppbarBackground = "#0A0F1E",        // darker header
+            AppbarText = "#E2E8F0",
+            DrawerBackground = "#0B1220",
+            DrawerText = "#E2E8F0",
+
+            // Text + chrome
+            TextPrimary = "#E5E7EB",
+            TextSecondary = "#94A3B8",
+            ActionDefault = "#E2E8F0",
+            ActionDisabled = "#64748B",
+            ActionDisabledBackground = "#1F2937",
+            Divider = "#334155",
+            LinesDefault = "#334155",
+            TableLines = "#273449"
+        }
+    };
 }

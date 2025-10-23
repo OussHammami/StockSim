@@ -1,0 +1,36 @@
+﻿@using MudBlazor
+@rendermode InteractiveServer
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor Http
+@inject IThemePrefService ThemePref
+@inject NavigationManager Nav
+
+<MudSwitch T="bool" Value="_isDark" ValueChanged="OnChanged" Label="Dark mode" Class="ma-4" />
+
+@code {
+    private bool _isDark;
+
+    protected override void OnInitialized()
+    {
+        _isDark = ThemePref.Get(Http.HttpContext!);
+    }
+
+    async Task OnChanged(bool value)
+    {
+        _isDark = value;
+        Nav.NavigateTo($"/ui/theme?dark={(value ? "true" : "false")}", forceLoad: true);
+    }
+
+    bool _ignore;
+    bool IsDark
+    {
+        get => _isDark;
+        set
+        {
+            if (_ignore) return;
+            _ignore = true;
+            _isDark = value;
+            _ = OnChanged(value);
+            _ignore = false;
+        }
+    }
+}
