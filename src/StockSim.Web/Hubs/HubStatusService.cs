@@ -1,65 +1,35 @@
-using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.SignalR.Client;
-
-namespace StockSim.Web.Services;
-
+namespace StockSim.Web.Hubs;
 public sealed class HubStatusService : IAsyncDisposable
 {
-    private readonly NavigationManager _nav;
-    private readonly ILogger<HubStatusService> _log;
+    private readonly IConfiguration _cfg;
     private HubConnection? _conn;
-
-    public bool Connected { get; private set; }
+    private bool _connected;
+    public bool Connected => _connected;
     public event Action<bool>? Changed;
 
-    public HubStatusService(NavigationManager nav, ILogger<HubStatusService> log)
-    {
-        _nav = nav;
-        _log = log;
-    }
+    public HubStatusService(IConfiguration cfg) => _cfg = cfg;
 
-    public async Task EnsureConnectedAsync(CancellationToken ct = default)
+    public async Task EnsureAsync(CancellationToken ct = default)
     {
         if (_conn != null) return;
 
-        var hubUri = _nav.ToAbsoluteUri("/hubs/quotes"); // adjust path if different
+        var baseUrl = _cfg["MarketFeed:BaseUrl"] ?? "http://localhost:8081";
+        var url = new Uri($"{baseUrl.TrimEnd('/')}/hubs/quotes");
+
         _conn = new HubConnectionBuilder()
-            .WithUrl(hubUri)
+            .WithUrl(url)                 // cross-origin to MarketFeed
             .WithAutomaticReconnect()
             .Build();
 
-        _conn.Reconnecting += error =>
-        {
-            Set(false);
-            return Task.CompletedTask;
-        };
-        _conn.Reconnected += id =>
-        {
-            Set(true);
-            return Task.CompletedTask;
-        };
-        _conn.Closed += error =>
-        {
-            Set(false);
-            return Task.CompletedTask;
-        };
+        _conn.Reconnecting += _ => { Set(false); return Task.CompletedTask; };
+        _conn.Reconnected  += _ => { Set(true);  return Task.CompletedTask; };
+        _conn.Closed       += _ => { Set(false); return Task.CompletedTask; };
 
         await _conn.StartAsync(ct);
         Set(true);
     }
 
-    private void Set(bool value)
-    {
-        if (Connected == value) return;
-        Connected = value;
-        try { Changed?.Invoke(value); } catch (Exception e) { _log.LogWarning(e, "Hub status change handler failed"); }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_conn is null) return;
-        try { await _conn.DisposeAsync(); } catch { /* ignore */ }
-        _conn = null;
-        Connected = false;
-    }
+    private void Set(bool v) { _connected = v; Changed?.Invoke(v); }
+    public async ValueTask DisposeAsync() { if (_conn != null) await _conn.DisposeAsync(); }
 }

@@ -15,6 +15,7 @@ using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
 using StockSim.Web.Components.Account;
 using StockSim.Web.Health;
+using StockSim.Web.Hubs;
 using StockSim.Web.Services;
 
 namespace StockSim.Web;
@@ -116,6 +117,8 @@ public static class StartupExtensions
         });
         services.AddSignalR();
         services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
+        services.AddSingleton<IThemePrefService, ThemePrefService>();
+        services.AddHttpContextAccessor();
 
         return services;
     }
@@ -192,8 +195,9 @@ public static class StartupExtensions
             ctx.Response.Headers["Referrer-Policy"] = "no-referrer";
             ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
             ctx.Response.Headers["Content-Security-Policy"] =
-                "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-                "script-src 'self'; connect-src 'self' ws: wss:;";
+            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
+            "script-src 'self' 'unsafe-inline'; " +
+            "connect-src 'self' http://localhost:8081 ws://localhost:8081;";
             await next();
         });
 
@@ -205,6 +209,15 @@ public static class StartupExtensions
         app.MapHealthChecks("/healthz");
         app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") });
         app.MapHub<THub>("/hubs/orders");
+        app.MapGet("/", (HttpContext ctx) =>
+        {
+            var to = "/dashboard";
+            if (ctx.User.Identity?.IsAuthenticated == true)
+                return Results.Redirect(to);
+
+            var ru = Uri.EscapeDataString(to);
+            return Results.Redirect($"/Account/Login?returnUrl={ru}");
+        });
         app.MapRazorComponents<TRoot>().AddInteractiveServerRenderMode();
         app.MapAdditionalIdentityEndpoints();
         return app;
