@@ -30,67 +30,69 @@
 </MudLayout>
 
 @code {
-    private MudTheme _theme = new()
+      private MudTheme _theme = new ()
     {
         PaletteLight = new PaletteLight
         {
-            // Accents
-            Primary = "#1D4ED8",                 // strong blue
+            // primary + supporting accent
+            Primary = "#2563EB",            
             PrimaryContrastText = "#FFFFFF",
-            Secondary = "#EA580C",               // vivid orange
+            Secondary = "#EC4899",          
             SecondaryContrastText = "#FFFFFF",
-            Info = "#0891B2",
+
+            Info = "#0EA5E9",
             Success = "#16A34A",
-            Warning = "#D97706",
+            Warning = "#F59E0B",
             Error = "#DC2626",
 
-            // Surfaces
-            Background = "#F5F7FA",              // light cool gray
-            Surface = "#FFFFFF",                 // cards
-            AppbarBackground = "#0F172A",        // near-black header
-            AppbarText = "#F8FAFC",
-            DrawerBackground = "#F1F5F9",
-            DrawerText = "#0F172A",
+            // neutrals (single gray scale)
+            Background = "#FFFFFF",
+            Surface = "#F8FAFC",            
+            AppbarBackground = "#111827",   
+            AppbarText = "#F9FAFB",
 
-            // Text + chrome
-            TextPrimary = "#0B1220",
-            TextSecondary = "#334155",
+            DrawerBackground = "#0F172A",   
+            DrawerText = "#E5E7EB",
+
+            TextPrimary = "#0F172A",
+            TextSecondary = "#475569",
+            Divider = "#E2E8F0",
+            LinesDefault = "#E2E8F0",
+            TableLines = "#E2E8F0",
             ActionDefault = "#0F172A",
             ActionDisabled = "#94A3B8",
             ActionDisabledBackground = "#E5E7EB",
-            Divider = "#CBD5E1",                 // clear edges
-            LinesDefault = "#CBD5E1",
-            TableLines = "#E2E8F0"
         },
         PaletteDark = new PaletteDark
         {
-            // Accents
-            Primary = "#3B82F6",                 // bright blue
-            PrimaryContrastText = "#0A0F1E",
-            Secondary = "#F59E0B",               // warm contrast
-            SecondaryContrastText = "#0A0F1E",
-            Info = "#06B6D4",
+            Primary = "#60A5FA",            
+            PrimaryContrastText = "#0B1220",
+            Secondary = "#F472B6",          
+            SecondaryContrastText = "#0B1220",
+
+            Info = "#38BDF8",
             Success = "#22C55E",
             Warning = "#F59E0B",
             Error = "#F43F5E",
 
-            // Surfaces
-            Background = "#0A0F1E",              // deep navy/near-black
-            Surface = "#111827",                 // raised cards
-            AppbarBackground = "#0A0F1E",        // darker header
-            AppbarText = "#E2E8F0",
-            DrawerBackground = "#0B1220",
-            DrawerText = "#E2E8F0",
+            Background = "#0B1220",         
+            Surface = "#0F172A",            
+            AppbarBackground = "#0B1220",
+            AppbarText = "#E5E7EB",
+            DrawerBackground = "#111827",
+            DrawerText = "#CBD5E1",
 
-            // Text + chrome
             TextPrimary = "#E5E7EB",
             TextSecondary = "#94A3B8",
+            Divider = "#1F2937",
+            LinesDefault = "#1F2937",
+            TableLines = "#1F2937",
             ActionDefault = "#E2E8F0",
             ActionDisabled = "#64748B",
-            ActionDisabledBackground = "#1F2937",
-            Divider = "#334155",
-            LinesDefault = "#334155",
-            TableLines = "#273449"
-        }
+            ActionDisabledBackground = "#111827",
+        },
+        
+        Typography = new Typography { Default = new DefaultTypography  { FontFamily = new[] { "Inter", "Roboto", "Segoe UI", "Arial", "sans-serif" } } },
+        LayoutProperties = new LayoutProperties { DefaultBorderRadius = "6px" }
     };
 }
