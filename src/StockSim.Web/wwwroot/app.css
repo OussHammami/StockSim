@@ -49,3 +49,6 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+.mud-switch-span .mud-switch-track {
+    background-color: rgb(119 127 147) !important;
+}
