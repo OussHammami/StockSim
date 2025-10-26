@@ -23,7 +23,6 @@ public static class DependencyInjection
 
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<IOrderQueries, OrderQueries>();
-        services.AddSingleton<IClock, SystemClock>();
 
         services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
         services.AddSingleton<RabbitConnection>();

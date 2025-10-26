@@ -10,6 +10,7 @@ public sealed class RabbitOptions
     public string User { get; set; } = "guest";
     public string Pass { get; set; } = "guest";
     public string Queue { get; set; } = "stocksim.orders";
+    public bool Durable { get; set; } = false;
 }
 
 public sealed class RabbitConnection : IDisposable
@@ -29,7 +30,7 @@ public sealed class RabbitConnection : IDisposable
         };
         Connection = factory.CreateConnection("stocksim-web");
         using var ch = Connection.CreateModel();
-        ch.QueueDeclare(Options.Queue, durable: false, exclusive: false, autoDelete: false);
+        ch.QueueDeclare(Options.Queue, durable: Options.Durable, exclusive: false, autoDelete: false);
     }
     public void Dispose() => Connection.Dispose();
 }
