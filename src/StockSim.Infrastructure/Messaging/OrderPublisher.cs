@@ -22,12 +22,14 @@ public sealed class OrderPublisher(RabbitConnection rc, IServiceScopeFactory sco
 
         using var channel = rc.Connection.CreateModel();
         var props = channel.CreateBasicProperties();
+        props.DeliveryMode = rc.Options.Durable ? (byte)2 : (byte)1;
+        props.ContentType = "application/json";
         props.Headers ??= new Dictionary<string, object>();
         Propagators.DefaultTextMapPropagator.Inject(
             new PropagationContext(Activity.Current?.Context ?? default, Baggage.Current),
             props.Headers,
             (d, k, v) => d[k] = Encoding.UTF8.GetBytes(v));
         var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(cmd));
-        channel.BasicPublish(exchange: "", routingKey: rc.Options.Queue, basicProperties: null, body: body);
+        channel.BasicPublish(exchange: "", routingKey: rc.Options.Queue, basicProperties: props, body: body);
     }
 }

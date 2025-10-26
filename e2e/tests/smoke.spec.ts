@@ -7,7 +7,7 @@ test.describe('Compose stack smoke', () => {
   });
 
   test('React app responds and has title', async ({ page }) => {
-    const resp = await page.goto('http://localhost:8082/charts');
+    const resp = await page.goto('http://localhost:5173/charts');
     expect(resp?.ok()).toBeTruthy();
     await expect(page).toHaveTitle(/stocksim-react/i);
   });

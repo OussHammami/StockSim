@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.HttpOverrides;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -11,53 +12,37 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
-// CORS: allow the Blazor Web origin (update the port to your Web app HTTPS port)
+// CORS: allow the Blazor Web origin and React dev site
 const string AllowWeb = "_allowWeb";
 
-builder.Host.UseSerilog((ctx, cfg) => cfg
-    .Enrich.FromLogContext()
-    .WriteTo.Console());
+// logging
+builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
-// OpenTelemetry metrics
+// OpenTelemetry consolidated
 builder.Services.AddOpenTelemetry()
+    .ConfigureResource(rb => rb.AddService(serviceName: "stocksim.marketfeed", serviceVersion: "1.0.0"))
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
-        .AddPrometheusExporter());
-
-
-builder.Services.AddOpenTelemetry()
-    .WithMetrics(m => m
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddRuntimeInstrumentation()
-        .AddPrometheusExporter());
-
-
-
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(rb => rb.AddService(
-        serviceName: "stocksim.web",
-        serviceVersion: "1.0.0"))
+        .AddPrometheusExporter())
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation(o =>
         {
-            // do not trace Prometheus scrapes
+            // do not trace Prometheus and health scrapes
             o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
                      || ctx.Request.Path.StartsWithSegments("/healthz")
                      || ctx.Request.Path.StartsWithSegments("/readyz"));
         })
-        .AddHttpClientInstrumentation(
-            o =>
+        .AddHttpClientInstrumentation(o =>
+        {
+            o.EnrichWithHttpRequestMessage = (act, req) =>
             {
-                o.EnrichWithHttpRequestMessage = (act, req) =>
-                {
-                    if (req.RequestUri?.Host == "marketfeed")
-                        act?.SetTag("peer.service", "stocksim.marketfeed");
-                };
-            })
-        .AddSource("StockSim.UI", "StockSim.Orders") 
+                if (req.RequestUri?.Host == "marketfeed")
+                    act?.SetTag("peer.service", "stocksim.marketfeed");
+            };
+        })
+        .AddSource("StockSim.UI", "StockSim.Orders")
         .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
 
 builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
@@ -82,6 +67,11 @@ app.UseSwaggerUI();
 app.MapHealthChecks("/healthz");
 app.MapHealthChecks("/readyz");
 
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
+});
+
 app.UseHttpsRedirection();
 app.UseCors(AllowWeb);
 // list quotes
@@ -96,5 +86,5 @@ app.MapGet("/api/quotes", (ConcurrentDictionary<string, Quote> prices, string? s
         ? q : new Quote(s, 0m, 0m, DateTimeOffset.UtcNow));
 }).RequireCors(AllowWeb);
 
-app.MapHub<QuoteHub>("/hubs/quotes").RequireCors(AllowWeb); ;
+app.MapHub<QuoteHub>("/hubs/quotes").RequireCors(AllowWeb);
 app.Run();

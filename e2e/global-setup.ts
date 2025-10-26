@@ -9,7 +9,7 @@ async function waitForServices(timeoutMs: number) {
     resources: [
       'http-get://localhost:8080/readyz',
       'http-get://localhost:8081/healthz',
-      'http-get://localhost:8082'
+      'http-get://localhost:5173'
     ],
     timeout: timeoutMs,
     interval: 1000,

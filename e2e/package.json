@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "scripts": {
     "install:browsers": "playwright install --with-deps",
-    "pretest": "wait-on http-get://localhost:8080/readyz http-get://localhost:8081/healthz http-get://localhost:8082",
+    "pretest": "wait-on http-get://localhost:8080/readyz http-get://localhost:8081/healthz http-get://localhost:5173",
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "report": "playwright show-report"
