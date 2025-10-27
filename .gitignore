@@ -363,3 +363,9 @@ MigrationBackup/
 FodyWeavers.xsd
 docs/ONBOARDING.md
 run.sh
+# Playwright outputs
+e2e/test-results/
+e2e/playwright-report/
+e2e/**/trace.zip
+e2e/**/video.webm
+e2e/**/test-*.png
