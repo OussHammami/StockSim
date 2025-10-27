@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Net.Http.Headers;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -12,8 +13,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 
-// CORS: allow the Blazor Web origin and React dev site
-const string AllowWeb = "_allowWeb";
+const string CorsPolicy = "SignalRStrict";
+var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
 // logging
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
@@ -45,11 +46,16 @@ builder.Services.AddOpenTelemetry()
         .AddSource("StockSim.UI", "StockSim.Orders")
         .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
 
-builder.Services.AddCors(o => o.AddPolicy(AllowWeb, p =>
-    p.WithOrigins("http://localhost:8080", "http://localhost:5173")
-     .AllowAnyHeader()
-     .AllowAnyMethod()
-     .AllowCredentials()));
+builder.Services.AddCors(o =>
+{
+    o.AddPolicy(CorsPolicy, p =>
+    {
+        p.WithOrigins(origins)
+         .WithHeaders(HeaderNames.ContentType, HeaderNames.Authorization, "x-requested-with")
+         .WithMethods("GET", "POST", "OPTIONS")
+         .AllowCredentials();
+    });
+});
 
 // shared state via DI
 builder.Services.AddSingleton(new ConcurrentDictionary<string, Quote>());
@@ -73,7 +79,35 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 app.UseHttpsRedirection();
-app.UseCors(AllowWeb);
+app.Use(async (ctx, next) =>
+{
+    var connect = new List<string> { "'self'" };
+    foreach (var o in origins)
+    {
+        connect.Add(o);
+        if (o.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            connect.Add("wss://" + o.Substring("https://".Length));
+        if (o.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            connect.Add("ws://" + o.Substring("http://".Length));
+    }
+
+    var csp =
+        $"default-src 'self'; " +
+        $"base-uri 'self'; " +
+        $"frame-ancestors 'none'; " +
+        $"img-src 'self' data:; " +
+        $"font-src 'self' data:; " +
+        $"style-src 'self' 'unsafe-inline'; " +
+        $"script-src 'self' 'unsafe-inline'; " +
+        $"connect-src {string.Join(' ', connect)}";
+
+    ctx.Response.Headers["Content-Security-Policy"] = csp;
+    ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    ctx.Response.Headers["Referrer-Policy"] = "no-referrer";
+    ctx.Response.Headers["X-Frame-Options"] = "DENY";
+    await next();
+});
+app.UseCors(CorsPolicy);
 // list quotes
 app.MapGet("/api/quotes", (ConcurrentDictionary<string, Quote> prices, string? symbolsCsv) =>
 {
@@ -84,7 +118,7 @@ app.MapGet("/api/quotes", (ConcurrentDictionary<string, Quote> prices, string? s
 
     return req.Select(s => prices.TryGetValue(s, out var q)
         ? q : new Quote(s, 0m, 0m, DateTimeOffset.UtcNow));
-}).RequireCors(AllowWeb);
+}).RequireCors(CorsPolicy);
 
-app.MapHub<QuoteHub>("/hubs/quotes").RequireCors(AllowWeb);
+app.MapHub<QuoteHub>("/hubs/quotes").RequireCors(CorsPolicy);
 app.Run();
