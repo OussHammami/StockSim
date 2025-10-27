@@ -22,5 +22,6 @@ public class CspTests : IClassFixture<TestingWebAppFactory>
         var csp = string.Join(" ", res.Headers.GetValues("Content-Security-Policy"));
         Assert.Contains("connect-src", csp);
         Assert.Contains("'self'", csp);
+        Assert.Contains("https://apis.example.com", csp);
     }
 }
