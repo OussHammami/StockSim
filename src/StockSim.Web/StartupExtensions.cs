@@ -109,7 +109,7 @@ public static class StartupExtensions
     }
 
     public static IServiceCollection AddUiServices(this IServiceCollection services)
-    {
+    {        
         services.AddMudServices(o =>
         {
             o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
@@ -162,10 +162,11 @@ public static class StartupExtensions
 
     public static WebApplication UseRequestPipeline(this WebApplication app)
     {
-        app.UseForwardedHeaders(new ForwardedHeadersOptions {
-            ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
-            KnownNetworks = { }, KnownProxies = { }
+        app.UseForwardedHeaders(new ForwardedHeadersOptions
+        {
+            ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor
         });
+
         if (app.Environment.IsDevelopment())
         {
             app.UseMigrationsEndPoint();
@@ -174,41 +175,60 @@ public static class StartupExtensions
         {
             app.UseExceptionHandler("/Error", createScopeForErrors: true);
             app.UseHsts();
-            app.UseHttpsRedirection();
         }
-
+        
+        app.UseHttpsRedirection();
         app.UseStaticFiles();
         app.UseSerilogRequestLogging();
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
         app.UseAntiforgery();
-        app.UseSecurityHeaders();
         return app;
     }
 
-    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app)
+    public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app, string[] origins)
         => app.Use(async (ctx, next) =>
         {
+            // base CSP
+            // connect-src includes self, explicit origins, and ws/wss for those origins
+            var connect = new List<string> { "'self'" };
+            foreach (var o in origins)
+            {
+                connect.Add(o);
+                // map http(s) origin to ws(s) for SignalR
+                if (o.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    connect.Add("wss://" + o.Substring("https://".Length));
+                if (o.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                    connect.Add("ws://" + o.Substring("http://".Length));
+            }
+
+            var csp =
+                $"default-src 'self'; " +
+                $"base-uri 'self'; " +
+                $"frame-ancestors 'none'; " +
+                $"img-src 'self' data:; " +
+                $"font-src 'self' data:; " +
+                $"style-src 'self' 'unsafe-inline'; " + // Blazor/Prerender styles
+                $"script-src 'self' 'unsafe-inline'; " + // Blazor Server boot script
+                $"connect-src {string.Join(' ', connect)}";
+
+            ctx.Response.Headers["Content-Security-Policy"] = csp;
             ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
-            ctx.Response.Headers["X-Frame-Options"] = "DENY";
             ctx.Response.Headers["Referrer-Policy"] = "no-referrer";
-            ctx.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-            ctx.Response.Headers["Content-Security-Policy"] =
-            "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-            "script-src 'self' 'unsafe-inline'; " +
-            "connect-src 'self' http://localhost:8081 ws://localhost:8081;";
+            ctx.Response.Headers["X-Frame-Options"] = "DENY";
             await next();
         });
 
-    public static IEndpointRouteBuilder MapAppEndpoints<TRoot, THub>(this IEndpointRouteBuilder app)
+
+    public static IEndpointRouteBuilder MapAppEndpoints<TRoot, THub>(this IEndpointRouteBuilder app, string corsPolicy)
         where TRoot : class
         where THub : Hub
     {
         app.MapPrometheusScrapingEndpoint("/metrics");
         app.MapHealthChecks("/healthz");
         app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") });
-        app.MapHub<THub>("/hubs/orders");
+        app.MapHub<THub>("/hubs/orders").RequireCors(corsPolicy);
         app.MapGet("/", (HttpContext ctx) =>
         {
             var to = "/dashboard";
@@ -227,6 +247,8 @@ public static class StartupExtensions
 
     public static WebApplication ApplyMigrations<TContext>(this WebApplication app) where TContext : DbContext
     {
+        if (app.Environment.IsEnvironment("Testing"))
+            return app;
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<TContext>();
         db.Database.Migrate();
