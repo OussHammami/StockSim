@@ -9,6 +9,7 @@ using StockSim.Domain.Orders.Events;
 using StockSim.Domain.Portfolio;
 using StockSim.Domain.ValueObjects;
 
+namespace StockSim.Application.Tests.Events;
 public class EventDispatcherTests
 {
     private static readonly Guid U = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeffffffff");
