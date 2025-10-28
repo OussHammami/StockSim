@@ -1,5 +1,4 @@
 using StockSim.Domain.Entities;
-using Xunit;
 
 namespace StockSim.Domain.Tests.Portfolio;
 
