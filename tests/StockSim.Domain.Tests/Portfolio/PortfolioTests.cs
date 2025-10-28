@@ -33,6 +33,7 @@ public class PortfolioTests
     {
         var p = new Domain.Portfolio.Portfolio(PortfolioId.New(), U);
         var sym = Symbol.From("AAPL");
+        p.Deposit(Money.From(100m));
         // seed position
         p.ApplyFill(OrderId.New(), OrderSide.Buy, sym, Quantity.From(10), Price.From(10));
         p.ClearDomainEvents();
