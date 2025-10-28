@@ -1,4 +1,3 @@
-using System;
 using StockSim.Domain.Orders;
 using StockSim.Domain.Portfolio.Events;
 using StockSim.Domain.Primitives;
@@ -16,10 +15,9 @@ public sealed class Portfolio : Entity
     public Money ReservedCash { get; private set; } = Money.Zero;
 
     // positions
-    private readonly Dictionary<string, Position> _positions = new();
+    private readonly List<Position> _positions = new();
+    public IReadOnlyCollection<Position> Positions => _positions.AsReadOnly();
     private readonly Dictionary<string, decimal> _reservedShares = new(); // by symbol
-
-    public IReadOnlyDictionary<string, Position> Positions => _positions;
 
     public Portfolio(PortfolioId id, Guid userId)
     {
@@ -108,14 +106,13 @@ public sealed class Portfolio : Entity
     public Money AvailableCash() => Money.From(Cash.Amount - ReservedCash.Amount);
 
     public decimal ReservedFor(Symbol symbol) => _reservedShares.GetValueOrDefault(symbol);
-
+    public Position? GetPosition(string symbolValue) => _positions.FirstOrDefault(p => p.Symbol.Value == symbolValue);
     private Position GetOrCreate(Symbol symbol)
     {
-        if (!_positions.TryGetValue(symbol, out var p))
-        {
-            p = new Position(symbol);
-            _positions[symbol] = p;
-        }
+        var existing = _positions.FirstOrDefault(p => p.Symbol.Value == symbol.Value);
+        if (existing is not null) return existing;
+        var p = new Position(symbol);
+        _positions.Add(p);
         return p;
     }
 }

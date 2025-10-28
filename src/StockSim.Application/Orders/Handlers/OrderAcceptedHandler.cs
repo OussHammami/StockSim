@@ -21,14 +21,14 @@ public sealed class OrderAcceptedHandler : IDomainEventHandler<OrderAccepted>
         {
             var cost = Money.From(e.Quantity * lp);
             p.ReserveFunds(e.OrderId, cost);
-            await _repo.SaveAsync(p, ct).ConfigureAwait(false);
+            await _repo.SaveChangesAsync(ct).ConfigureAwait(false);
             return;
         }
 
         if (e.Side == OrderSide.Sell)
         {
             p.ReserveShares(e.OrderId, e.Symbol, Quantity.From(e.Quantity));
-            await _repo.SaveAsync(p, ct).ConfigureAwait(false);
+            await _repo.SaveChangesAsync(ct).ConfigureAwait(false);
         }
     }
 }

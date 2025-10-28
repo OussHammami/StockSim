@@ -10,7 +10,7 @@ using StockSim.Application.Abstractions;
 
 namespace StockSim.Infrastructure.Messaging;
 
-public sealed class OrderPublisher(RabbitConnection rc, IServiceScopeFactory scopeFactory) : IOrderPublisher
+public sealed class OrderPublisher(RabbitConnection rc) : IOrderPublisher
 {
     static readonly ActivitySource Orders = new("StockSim.Orders");
     public void Publish(OrderCommand cmd)

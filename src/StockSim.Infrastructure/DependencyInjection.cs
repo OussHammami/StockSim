@@ -3,8 +3,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using StockSim.Application.Abstractions;
+using StockSim.Application.Orders;
+using StockSim.Application.Portfolios;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
+using StockSim.Infrastructure.Persistence.Portfolioing;
+using StockSim.Infrastructure.Persistence.Trading;
+using StockSim.Infrastructure.Repositories;
 using StockSim.Web.Services;
 
 namespace StockSim.Infrastructure;
@@ -16,7 +21,7 @@ public static class DependencyInjection
         var cs = cfg.GetConnectionString("DefaultConnection")
                  ?? throw new InvalidOperationException("Missing DefaultConnection.");
         services.AddDatabaseDeveloperPageExceptionFilter();
-        
+
         services.AddDbContextPool<ApplicationDbContext>(o => o.UseNpgsql(cs));
         services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs));
 
@@ -29,6 +34,19 @@ public static class DependencyInjection
         services.AddSingleton<IOrderPublisher, OrderPublisher>();
 
         services.AddSingleton<IClock, SystemClock>();
+        return services;
+    }
+    
+    public static IServiceCollection AddEfRepositories(
+        this IServiceCollection services,
+        Action<DbContextOptionsBuilder> tradingDb,
+        Action<DbContextOptionsBuilder> portfolioDb)
+    {
+        services.AddDbContext<TradingDbContext>(tradingDb);
+        services.AddDbContext<PortfolioDbContext>(portfolioDb);
+
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IPortfolioRepository, PortfolioRepository>();
         return services;
     }
 }
