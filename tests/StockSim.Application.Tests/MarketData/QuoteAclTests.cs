@@ -4,6 +4,15 @@ namespace StockSim.Application.Tests.MarketData;
 
 public class QuoteAclTests
 {
+    public static TheoryData<string?, decimal?, decimal?> InvalidCases => new()
+    {
+        { null,    100m, 101m },
+        { "AAPL",  null, 101m },
+        { "AAPL", 100m,  null },
+        { "AAPL",  -1m, 101m },
+        { "AAPL", 101m, 100m }, // ask < bid handled by Quote ctor
+    };
+
     [Fact]
     public void Valid_Maps_To_Quote()
     {
@@ -16,14 +25,10 @@ public class QuoteAclTests
     }
 
     [Theory]
-    [InlineData(null, 100, 101)]
-    [InlineData("AAPL", null, 101)]
-    [InlineData("AAPL", 100, null)]
-    [InlineData("AAPL", -1, 101)]
-    [InlineData("AAPL", 101, 100)] // ask < bid handled by Quote
+    [MemberData(nameof(InvalidCases))]
     public void Invalid_Returns_Null(string? t, decimal? bid, decimal? ask)
     {
-        var dto = new FeedQuoteDto(t ?? "", bid, ask, 100, DateTimeOffset.UtcNow);
+        var dto = new FeedQuoteDto(t ?? "", bid, ask, 100m, DateTimeOffset.UtcNow);
         var q = QuoteAcl.Map(dto);
         Assert.Null(q);
     }

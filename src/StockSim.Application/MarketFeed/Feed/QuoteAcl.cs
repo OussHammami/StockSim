@@ -11,6 +11,7 @@ public static class QuoteAcl
         if (dto.Bid is null || dto.Ask is null) return null;
         if (dto.Bid < 0m || dto.Ask < 0m) return null;
         if (dto.TsUtc is null) return null;
+        if (dto.Ask < dto.Bid) return null;
 
         var symbol = Symbol.From(dto.Ticker);
         var bid = Price.From(dto.Bid.Value);
