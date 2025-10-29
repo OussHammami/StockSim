@@ -2,6 +2,7 @@ using StockSim.Application.Abstractions.Events;
 using StockSim.Domain.Orders;
 using StockSim.Domain.ValueObjects;
 using StockSim.Application.Orders.Commands;
+using StockSim.Application.Integration;
 
 namespace StockSim.Application.Orders;
 
@@ -9,11 +10,15 @@ public sealed class OrderService : IOrderService
 {
     private readonly IOrderRepository _orders;
     private readonly IEventDispatcher _events;
+    private readonly IIntegrationEventMapper _mapper;
+    private readonly IOutboxWriter _outbox;
 
-    public OrderService(IOrderRepository orders, IEventDispatcher events)
+    public OrderService(IOrderRepository orders, IEventDispatcher events, IIntegrationEventMapper mapper, IOutboxWriter outbox)
     {
         _orders = orders;
         _events = events;
+        _mapper = mapper;
+        _outbox = outbox;
     }
 
     public async Task<OrderId> PlaceAsync(PlaceOrder cmd, CancellationToken ct = default)
@@ -31,7 +36,11 @@ public sealed class OrderService : IOrderService
 
         await _orders.AddAsync(o, ct);
         await _events.DispatchAsync(o.DomainEvents, ct);
+
+        var integrationEvents = _mapper.Map(o.DomainEvents).ToArray();
         o.ClearDomainEvents();
+
+        await _outbox.WriteAsync(integrationEvents, ct);
         await _orders.SaveChangesAsync(ct);
 
         return o.Id;
@@ -43,7 +52,10 @@ public sealed class OrderService : IOrderService
         if (o.UserId != cmd.UserId) throw new InvalidOperationException("Forbidden.");
         o.Cancel(cmd.Reason);
         await _events.DispatchAsync(o.DomainEvents, ct);
+        var integrationEvents = _mapper.Map(o.DomainEvents).ToArray();
         o.ClearDomainEvents();
+        
+        await _outbox.WriteAsync(integrationEvents, ct);
         await _orders.SaveChangesAsync(ct);
     }
 

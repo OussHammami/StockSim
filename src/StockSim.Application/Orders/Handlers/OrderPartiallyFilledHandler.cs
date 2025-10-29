@@ -1,32 +1,51 @@
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Integration;
+using StockSim.Application.Orders;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.Orders.Events;
+using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Application.Orders.Handlers;
 
 public sealed class OrderPartiallyFilledHandler : IDomainEventHandler<OrderPartiallyFilled>
 {
-    private readonly IPortfolioRepository _repo;
-    private readonly Func<Guid> _userIdResolver; // supply from app service if needed
+    private readonly IOrderRepository _orders;
+    private readonly IPortfolioRepository _portfolios;
+    private readonly IIntegrationEventMapper _mapper;
+    private readonly IOutboxWriter _outbox;
 
-    public OrderPartiallyFilledHandler(IPortfolioRepository repo)
-        : this(repo, () => Guid.Empty) { }
-
-    public OrderPartiallyFilledHandler(IPortfolioRepository repo, Func<Guid> userIdResolver)
+    public OrderPartiallyFilledHandler(
+        IOrderRepository orders,
+        IPortfolioRepository portfolios,
+        IIntegrationEventMapper mapper,
+        IOutboxWriter outbox)
     {
-        _repo = repo;
-        _userIdResolver = userIdResolver;
+        _orders = orders;
+        _portfolios = portfolios;
+        _mapper = mapper;
+        _outbox = outbox;
     }
 
     public async Task HandleAsync(OrderPartiallyFilled e, CancellationToken ct = default)
     {
-        // In real flow, resolve portfolio by order ownership. Here use resolver hook.
-        var userId = _userIdResolver();
-        var p = await _repo.GetByUserAsync(userId, ct).ConfigureAwait(false);
-        if (p is null) return;
+        // Need side, symbol, user → load order
+        var order = await _orders.GetAsync(e.OrderId, ct).ConfigureAwait(false);
+        if (order is null) return;
 
-        // We do not know side or symbol here without loading the Order.
-        // For the demo pipeline, assume BUY on a synthetic symbol hook.
-        // Replace later when Order is accessible.
+        var portfolio = await _portfolios.GetByUserAsync(order.UserId, ct).ConfigureAwait(false);
+        if (portfolio is null) return;
+
+        portfolio.ApplyFill(
+            e.OrderId,
+            order.Side,
+            order.Symbol,
+            Quantity.From(e.FillQuantity),
+            Price.From(e.FillPrice));
+
+        var ievents = _mapper.Map(portfolio.DomainEvents).ToArray();
+        portfolio.ClearDomainEvents();
+
+        await _outbox.WriteAsync(ievents, ct).ConfigureAwait(false);
+        await _portfolios.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 }

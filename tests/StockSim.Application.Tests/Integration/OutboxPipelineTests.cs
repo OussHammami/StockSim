@@ -8,35 +8,36 @@ using StockSim.Application.Portfolios;
 using StockSim.Application.Tests.Fakes;
 using StockSim.Domain.ValueObjects;
 
-namespace StockSim.Application.Tests.Orders;
+namespace StockSim.Application.Tests.Integration;
 
-public class OrderServiceTests
+public class OutboxPipelineTests
 {
     private static readonly Guid U = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeffffffff");
 
     [Fact]
-    public async Task Place_Limit_Buy_Reserves_Funds()
+    public async Task Place_Limit_Buy_Writes_OrderAccepted_And_FundsReserved_Outbox_Events()
     {
         var svcs = new ServiceCollection();
         svcs.AddApplicationCore();
         var orders = new InMemoryOrderRepository();
-        var outbox = new InMemoryOutboxWriter();
         var portfolios = new InMemoryPortfolioRepository();
-        var p = new Domain.Portfolio.Portfolio(PortfolioId.New(), U);
+        var outbox = new InMemoryOutboxWriter();
+
+        var p = new StockSim.Domain.Portfolio.Portfolio(PortfolioId.New(), U);
         p.Deposit(Money.From(1000m));
         portfolios.Seed(p);
 
         svcs.AddSingleton<IOrderRepository>(orders);
         svcs.AddSingleton<IPortfolioRepository>(portfolios);
-        svcs.AddSingleton<IDomainEventHandler<Domain.Orders.Events.OrderAccepted>, OrderAcceptedHandler>();
+        svcs.AddSingleton<IDomainEventHandler<StockSim.Domain.Orders.Events.OrderAccepted>, OrderAcceptedHandler>();
         svcs.AddSingleton<IOutboxWriter>(outbox);
 
         var sp = svcs.BuildServiceProvider();
         var svc = sp.GetRequiredService<IOrderService>();
 
-        var id = await svc.PlaceAsync(new PlaceOrder(U, "AAPL", Domain.Orders.OrderSide.Buy, Domain.Orders.OrderType.Limit, 5m, 100m));
+        await svc.PlaceAsync(new PlaceOrder(U, "AAPL", StockSim.Domain.Orders.OrderSide.Buy, StockSim.Domain.Orders.OrderType.Limit, 5m, 100m));
 
-        var loaded = await portfolios.GetByUserAsync(U);
-        Assert.Equal(500m, loaded!.ReservedCash.Amount);
+        Assert.Contains(outbox.Items, e => e.Type == "trading.order.accepted");
+        Assert.Contains(outbox.Items, e => e.Type == "portfolio.funds.reserved");
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using StockSim.Application;
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Integration;
 using StockSim.Application.Orders.Handlers;
 using StockSim.Application.Portfolios;
 using StockSim.Application.Tests.Fakes;
@@ -21,8 +22,10 @@ public class EventDispatcherTests
         var svcs = new ServiceCollection();
         svcs.AddApplicationCore();
         var repo = new InMemoryPortfolioRepository();
+        var outbox = new InMemoryOutboxWriter();
         svcs.AddSingleton<IPortfolioRepository>(repo);
         svcs.AddSingleton<IDomainEventHandler<OrderAccepted>, OrderAcceptedHandler>();
+        svcs.AddSingleton<IOutboxWriter>(outbox);
         var sp = svcs.BuildServiceProvider();
 
         // seed portfolio
@@ -48,8 +51,10 @@ public class EventDispatcherTests
         var svcs = new ServiceCollection();
         svcs.AddApplicationCore();
         var repo = new InMemoryPortfolioRepository();
+        var outbox = new InMemoryOutboxWriter();
         svcs.AddSingleton<IPortfolioRepository>(repo);
         svcs.AddSingleton<IDomainEventHandler<OrderAccepted>, OrderAcceptedHandler>();
+        svcs.AddSingleton<IOutboxWriter>(outbox);
         var sp = svcs.BuildServiceProvider();
 
         var sym = Symbol.From("MSFT");
