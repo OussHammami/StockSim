@@ -109,7 +109,7 @@ public static class StartupExtensions
     }
 
     public static IServiceCollection AddUiServices(this IServiceCollection services)
-    {        
+    {
         services.AddMudServices(o =>
         {
             o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;

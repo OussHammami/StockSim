@@ -4,6 +4,7 @@ using StockSim.Infrastructure.Persistence;
 using StockSim.Web;
 using StockSim.Web.Components;
 using StockSim.Web.Hubs;
+using StockSim.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +28,9 @@ builder.Services.AddCors(o =>
 });
 builder.Services.AddUiServices();
 builder.Services.AddSecurity(builder.Environment);
+
+builder.Services.AddApplicationCore();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -57,6 +61,8 @@ app.MapGet("/ui/theme", (bool dark, HttpContext ctx) =>
     var referer = ctx.Request.Headers.Referer.ToString();
     return Results.Redirect(string.IsNullOrEmpty(referer) ? "/" : referer);
 }).AllowAnonymous();
+
+app.MapControllers();
 app.MapAppEndpoints<App, OrderHub>(CorsPolicy);
 app.MapPost("/admin/reset-demo", async (ApplicationDbContext db) =>
 {
