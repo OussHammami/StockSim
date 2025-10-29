@@ -3,6 +3,7 @@ using StockSim.Application.Abstractions.Events;
 using StockSim.Application.Events;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
+using StockSim.Application.Portfolios;
 
 namespace StockSim.Application;
 
@@ -13,6 +14,7 @@ public static class DependencyInjection
         services.AddSingleton<IEventDispatcher, InMemoryEventDispatcher>();
         services.AddSingleton<IIntegrationEventMapper, DefaultIntegrationEventMapper>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IPortfolioService, PortfolioService>();
         return services;
     }
 }

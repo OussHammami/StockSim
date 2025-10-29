@@ -16,6 +16,7 @@ Host.CreateDefaultBuilder(args)
         );
 
         services.AddHostedService<PortfolioOutboxDispatcher>();
+        services.AddHostedService<HealthHost>();
     })
     .Build()
     .Run();

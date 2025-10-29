@@ -16,6 +16,7 @@ Host.CreateDefaultBuilder(args)
         );
 
         services.AddHostedService<TradingOutboxDispatcher>();
+        services.AddHostedService<HealthHost>();
     })
     .Build()
     .Run();

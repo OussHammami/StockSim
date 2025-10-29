@@ -183,6 +183,8 @@ public static class StartupExtensions
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
+        app.MapGet("/readyz", () => Results.Ok("ready")).AllowAnonymous();
         app.UseAntiforgery();
         return app;
     }
