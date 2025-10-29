@@ -7,4 +7,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\src\StockSim.Application\StockSim.Application.csproj" />
+    <ProjectReference Include="..\src\StockSim.Infrastructure\StockSim.Infrastructure.csproj" />
+  </ItemGroup>
+
 </Project>

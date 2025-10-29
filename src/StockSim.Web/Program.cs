@@ -1,10 +1,12 @@
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Microsoft.EntityFrameworkCore;
+using StockSim.Application;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Web;
 using StockSim.Web.Components;
 using StockSim.Web.Hubs;
-using StockSim.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +32,11 @@ builder.Services.AddUiServices();
 builder.Services.AddSecurity(builder.Environment);
 
 builder.Services.AddApplicationCore();
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(o => { /* keep defaults */ });
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
+builder.Services.AddProblemDetails();
+
 
 var app = builder.Build();
 
@@ -62,6 +68,8 @@ app.MapGet("/ui/theme", (bool dark, HttpContext ctx) =>
     return Results.Redirect(string.IsNullOrEmpty(referer) ? "/" : referer);
 }).AllowAnonymous();
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 app.MapControllers();
 app.MapAppEndpoints<App, OrderHub>(CorsPolicy);
 app.MapPost("/admin/reset-demo", async (ApplicationDbContext db) =>

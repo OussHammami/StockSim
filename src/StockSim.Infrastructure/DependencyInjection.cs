@@ -28,7 +28,7 @@ public static class DependencyInjection
         services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs));
 
 
-        services.AddScoped<IPortfolioService, PortfolioService>();
+        services.AddScoped<Application.Abstractions.IPortfolioService, Web.Services.PortfolioService>();
         services.AddScoped<IOrderQueries, OrderQueries>();
 
         services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
