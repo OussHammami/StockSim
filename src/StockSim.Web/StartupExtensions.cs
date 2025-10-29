@@ -10,6 +10,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using StockSim.Application.MarketData.Feed;
 using StockSim.Infrastructure;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
@@ -116,6 +117,8 @@ public static class StartupExtensions
             o.SnackbarConfiguration.VisibleStateDuration = 2500;
         });
         services.AddSignalR();
+        services.AddSingleton<IMarketDataFeed, FakeMarketDataFeed>();
+        services.AddHostedService<MarketDataStreamer>();
         services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
         services.AddSingleton<IThemePrefService, ThemePrefService>();
         services.AddHttpContextAccessor();

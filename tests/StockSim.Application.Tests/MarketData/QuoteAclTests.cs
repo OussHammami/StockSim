@@ -1,5 +1,6 @@
 ﻿using StockSim.Application.MarketData.Feed;
-using Xunit;
+
+namespace StockSim.Application.Tests.MarketData;
 
 public class QuoteAclTests
 {
