@@ -1,11 +1,13 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using StockSim.Application.Abstractions;
+using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Portfolios;
+using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
+using StockSim.Infrastructure.Outbox;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
@@ -47,6 +49,9 @@ public static class DependencyInjection
 
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IPortfolioRepository, PortfolioRepository>();
+
+        services.AddScoped<IOutboxWriter, EfOutboxWriter>();
+        services.AddScoped<IInboxStore, EfInboxStore>();
         return services;
     }
 }

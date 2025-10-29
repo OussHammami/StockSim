@@ -1,6 +1,9 @@
-using StockSim.Domain.Primitives;
+using StockSim.Contracts.Common;
+using StockSim.Contracts.Portfolio;
+using StockSim.Contracts.Trading;
 using StockSim.Domain.Orders.Events;
 using StockSim.Domain.Portfolio.Events;
+using StockSim.Domain.Primitives;
 
 namespace StockSim.Application.Integration;
 
@@ -13,111 +16,116 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
             switch (e)
             {
                 case OrderAccepted oa:
-                    yield return IntegrationEvent.Create(
-                        type: "trading.order.accepted",
-                        source: "trading",
-                        subject: oa.OrderId.ToString(),
-                        data: new { oa.UserId, OrderId = oa.OrderId.ToString(), Symbol = oa.Symbol.Value, oa.Side, oa.Type, oa.Quantity, oa.LimitPrice },
-                        occurredAt: oa.OccurredAt,
-                        dedupeKey: $"trading|order.accepted|{oa.OrderId}"
+                {
+                    var payload = new OrderAcceptedV1(
+                        OrderId: oa.OrderId.ToString(),
+                        UserId: oa.UserId,
+                        Symbol: oa.Symbol.Value,
+                        Side: oa.Side.ToString(),
+                        Type: oa.Type.ToString(),
+                        Quantity: oa.Quantity,
+                        LimitPrice: oa.LimitPrice
                     );
+
+                    var env = new EnvelopeV1(
+                        Id: Guid.NewGuid().ToString("N"),
+                        Type: "trading.order.accepted",
+                        Source: "trading",
+                        Subject: oa.OrderId.ToString(),
+                        OccurredAt: oa.OccurredAt,
+                        SchemaVersion: "1",
+                        DedupeKey: $"trading|order.accepted|{oa.OrderId}"
+                    );
+
+                    yield return IntegrationEvent.Create(
+                        type: env.Type, source: env.Source, subject: env.Subject,
+                        data: payload, occurredAt: env.OccurredAt, dedupeKey: env.DedupeKey);
                     break;
+                }
 
                 case OrderPartiallyFilled opf:
-                    yield return IntegrationEvent.Create(
-                        "trading.order.partiallyFilled",
-                        "trading",
-                        opf.OrderId.ToString(),
-                        new { OrderId = opf.OrderId.ToString(), opf.FillQuantity, opf.FillPrice, opf.CumFilledQuantity },
-                        opf.OccurredAt,
-                        $"trading|order.partiallyFilled|{opf.OrderId}|{opf.CumFilledQuantity}"
-                    );
+                {
+                    var payload = new OrderPartiallyFilledV1(
+                        opf.OrderId.ToString(), opf.FillQuantity, opf.FillPrice, opf.CumFilledQuantity);
+
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "trading.order.partiallyFilled", "trading",
+                        opf.OrderId.ToString(), opf.OccurredAt, "1",
+                        $"trading|order.partiallyFilled|{opf.OrderId}|{opf.CumFilledQuantity}");
+
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case OrderFilled of:
-                    yield return IntegrationEvent.Create(
-                        "trading.order.filled",
-                        "trading",
-                        of.OrderId.ToString(),
-                        new { OrderId = of.OrderId.ToString(), of.TotalFilledQuantity, of.AverageFillPrice },
-                        of.OccurredAt,
-                        $"trading|order.filled|{of.OrderId}"
-                    );
+                {
+                    var payload = new OrderFilledV1(of.OrderId.ToString(), of.TotalFilledQuantity, of.AverageFillPrice);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "trading.order.filled", "trading",
+                        of.OrderId.ToString(), of.OccurredAt, "1",
+                        $"trading|order.filled|{of.OrderId}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case OrderRejected orj:
-                    yield return IntegrationEvent.Create(
-                        "trading.order.rejected",
-                        "trading",
-                        orj.OrderId.ToString(),
-                        new { OrderId = orj.OrderId.ToString(), orj.Reason },
-                        orj.OccurredAt,
-                        $"trading|order.rejected|{orj.OrderId}"
-                    );
+                {
+                    var payload = new OrderRejectedV1(orj.OrderId.ToString(), orj.Reason);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "trading.order.rejected", "trading",
+                        orj.OrderId.ToString(), orj.OccurredAt, "1",
+                        $"trading|order.rejected|{orj.OrderId}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case FundsReserved fr:
-                    yield return IntegrationEvent.Create(
-                        "portfolio.funds.reserved",
-                        "portfolio",
-                        fr.PortfolioId.ToString(),
-                        new { PortfolioId = fr.PortfolioId.ToString(), OrderId = fr.OrderId.ToString(), Amount = fr.Amount.Amount },
-                        fr.OccurredAt,
-                        $"portfolio|funds.reserved|{fr.PortfolioId}|{fr.OrderId}"
-                    );
+                {
+                    var payload = new FundsReservedV1(fr.PortfolioId.ToString(), fr.OrderId.ToString(), fr.Amount.Amount);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "portfolio.funds.reserved", "portfolio",
+                        fr.PortfolioId.ToString(), fr.OccurredAt, "1",
+                        $"portfolio|funds.reserved|{fr.PortfolioId}|{fr.OrderId}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case SharesReserved sr:
-                    yield return IntegrationEvent.Create(
-                        "portfolio.shares.reserved",
-                        "portfolio",
-                        sr.PortfolioId.ToString(),
-                        new { PortfolioId = sr.PortfolioId.ToString(), OrderId = sr.OrderId.ToString(), Symbol = sr.Symbol.Value, Quantity = sr.Quantity.Value },
-                        sr.OccurredAt,
-                        $"portfolio|shares.reserved|{sr.PortfolioId}|{sr.OrderId}"
-                    );
+                {
+                    var payload = new SharesReservedV1(sr.PortfolioId.ToString(), sr.OrderId.ToString(), sr.Symbol.Value, sr.Quantity.Value);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "portfolio.shares.reserved", "portfolio",
+                        sr.PortfolioId.ToString(), sr.OccurredAt, "1",
+                        $"portfolio|shares.reserved|{sr.PortfolioId}|{sr.OrderId}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case ReservationReleased rr:
-                    yield return IntegrationEvent.Create(
-                        "portfolio.reservation.released",
-                        "portfolio",
-                        rr.PortfolioId.ToString(),
-                        new
-                        {
-                            PortfolioId = rr.PortfolioId.ToString(),
-                            OrderId = rr.OrderId.ToString(),
-                            Funds = rr.Funds?.Amount,
-                            Symbol = rr.Symbol?.Value,
-                            Shares = rr.Shares?.Value,
-                            rr.Reason
-                        },
-                        rr.OccurredAt,
-                        $"portfolio|reservation.released|{rr.PortfolioId}|{rr.OrderId}|{rr.Reason}"
-                    );
+                {
+                    var payload = new ReservationReleasedV1(
+                        rr.PortfolioId.ToString(), rr.OrderId.ToString(),
+                        rr.Funds?.Amount, rr.Symbol?.Value, rr.Shares?.Value, rr.Reason);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "portfolio.reservation.released", "portfolio",
+                        rr.PortfolioId.ToString(), rr.OccurredAt, "1",
+                        $"portfolio|reservation.released|{rr.PortfolioId}|{rr.OrderId}|{rr.Reason}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
 
                 case FillApplied fa:
-                    yield return IntegrationEvent.Create(
-                        "portfolio.fill.applied",
-                        "portfolio",
-                        fa.PortfolioId.ToString(),
-                        new
-                        {
-                            PortfolioId = fa.PortfolioId.ToString(),
-                            OrderId = fa.OrderId.ToString(),
-                            fa.Side,
-                            Symbol = fa.Symbol.Value,
-                            Quantity = fa.Quantity.Value,
-                            Price = fa.Price.Value,
-                            CashDelta = fa.CashDelta.Amount,
-                            fa.NewPositionQty,
-                            fa.NewAvgCost
-                        },
-                        fa.OccurredAt,
-                        $"portfolio|fill.applied|{fa.PortfolioId}|{fa.OrderId}|{fa.Quantity.Value}"
-                    );
+                {
+                    var payload = new FillAppliedV1(
+                        fa.PortfolioId.ToString(), fa.OrderId.ToString(), fa.Side.ToString(), fa.Symbol.Value,
+                        fa.Quantity.Value, fa.Price.Value, fa.CashDelta.Amount, fa.NewPositionQty, fa.NewAvgCost);
+                    var env = new EnvelopeV1(
+                        Guid.NewGuid().ToString("N"), "portfolio.fill.applied", "portfolio",
+                        fa.PortfolioId.ToString(), fa.OccurredAt, "1",
+                        $"portfolio|fill.applied|{fa.PortfolioId}|{fa.OrderId}|{fa.Quantity.Value}");
+                    yield return IntegrationEvent.Create(env.Type, env.Source, env.Subject, payload, env.OccurredAt, env.DedupeKey);
                     break;
+                }
             }
         }
     }

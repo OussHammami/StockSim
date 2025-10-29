@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\StockSim.Domain\StockSim.Domain.csproj" />
+    <ProjectReference Include="..\StockSim.Contracts\StockSim.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

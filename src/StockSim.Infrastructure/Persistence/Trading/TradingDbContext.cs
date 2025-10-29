@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using StockSim.Domain.Orders;
+using StockSim.Infrastructure.Inbox;
+using StockSim.Infrastructure.Outbox;
 
 namespace StockSim.Infrastructure.Persistence.Trading;
 
@@ -10,6 +12,8 @@ public class TradingDbContext: DbContext
     public TradingDbContext(DbContextOptions<TradingDbContext> options) : base(options) { }
 
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OutboxMessage> Outbox => Set<OutboxMessage>();
+    public DbSet<InboxMessage> Inbox => Set<InboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
