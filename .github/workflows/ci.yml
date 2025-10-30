@@ -8,13 +8,27 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Restore
         run: dotnet restore
@@ -22,8 +36,28 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+        working-directory: e2e
+        if: ${{ hashFiles('e2e/package.json') != '' }}
+
       - name: Test
-        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=testresults.trx"
+        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=testresults.trx --collect "XPlat Code Coverage"
+
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: .NET Tests
+          path: "**/TestResults/*.trx"
+          reporter: dotnet-trx
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: "**/TestResults/*/coverage.cobertura.xml"
 
   react-build:
     runs-on: ubuntu-latest
