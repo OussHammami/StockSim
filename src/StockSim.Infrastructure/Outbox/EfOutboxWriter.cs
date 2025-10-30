@@ -1,4 +1,5 @@
 ﻿using StockSim.Application.Integration;
+using StockSim.Application.Telemetry;
 using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
 
@@ -17,6 +18,7 @@ public sealed class EfOutboxWriter : IOutboxWriter
 
     public async Task WriteAsync(IEnumerable<IntegrationEvent> events, CancellationToken ct = default)
     {
+        int count = 0;
         foreach (var e in events)
         {
             var msg = new OutboxMessage
@@ -36,6 +38,7 @@ public sealed class EfOutboxWriter : IOutboxWriter
                 await _portfolio.Outbox.AddAsync(msg, ct);
             else
                 throw new InvalidOperationException($"Unknown source '{e.Source}'.");
+            count++;
         }
 
         // let each context save only if it has pending entries
@@ -43,5 +46,6 @@ public sealed class EfOutboxWriter : IOutboxWriter
             await _trading.SaveChangesAsync(ct);
         if (_portfolio.ChangeTracker.HasChanges())
             await _portfolio.SaveChangesAsync(ct);
+        if (count > 0) Telemetry.OutboxEventsWritten.Add(count);
     }
 }

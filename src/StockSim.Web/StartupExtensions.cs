@@ -34,6 +34,7 @@ public static class StartupExtensions
             .WithMetrics(m => m
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
+                .AddMeter("StockSim.Orders", "StockSim.Portfolio")
                 .AddOtlpExporter()
                 .AddPrometheusExporter())
             .WithTracing(t => t
@@ -49,7 +50,7 @@ public static class StartupExtensions
                             act?.SetTag("peer.service", "stocksim.marketfeed");
                     };
                 })
-                .AddSource("StockSim.UI", "StockSim.Orders")
+                .AddSource("StockSim.UI", "StockSim.Orders", "StockSim.Portfolio")
                 .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans"))
                 .AddOtlpExporter());
         return builder;

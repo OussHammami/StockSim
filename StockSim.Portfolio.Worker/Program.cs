@@ -2,7 +2,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using StockSim.Application;
+using StockSim.Application.Telemetry;
 using StockSim.Infrastructure;
 
 Host.CreateDefaultBuilder(args)
@@ -17,6 +21,17 @@ Host.CreateDefaultBuilder(args)
 
         services.AddHostedService<PortfolioOutboxDispatcher>();
         services.AddHostedService<HealthHost>();
+
+        services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService("stocksim.portfolio.worker"))
+            .WithTracing(b => b
+                .AddHttpClientInstrumentation()
+                .AddSource(Telemetry.PortfolioSourceName)
+                .AddConsoleExporter())
+            .WithMetrics(b => b
+                .AddRuntimeInstrumentation()
+                .AddMeter(Telemetry.PortfolioSourceName)
+                .AddPrometheusExporter());
     })
     .Build()
     .Run();
