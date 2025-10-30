@@ -42,14 +42,20 @@ jobs:
         if: ${{ hashFiles('e2e/package.json') != '' }}
 
       - name: Test
-        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=testresults.trx --collect "XPlat Code Coverage"
+        run: |
+          dotnet test \
+            --configuration Release \
+            --no-build \
+            --results-directory ./TestResults \
+            --logger "trx;LogFileName=testresults.trx" \
+            --collect:"XPlat Code Coverage"
 
       - name: Test Report
-        uses: dorny/test-reporter@v1
         if: always()
+        uses: dorny/test-reporter@v1
         with:
           name: .NET Tests
-          path: "**/TestResults/*.trx"
+          path: TestResults/*.trx
           reporter: dotnet-trx
 
       - name: Upload Coverage
