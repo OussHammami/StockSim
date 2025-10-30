@@ -2,8 +2,14 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build-test:
@@ -51,19 +57,19 @@ jobs:
             --collect:"XPlat Code Coverage"
 
       - name: Test Report
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
         uses: dorny/test-reporter@v1
         with:
           name: .NET Tests
           path: TestResults/*.trx
           reporter: dotnet-trx
 
-      - name: Upload Coverage
-        uses: actions/upload-artifact@v4
+      - name: Upload Test Results
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: coverage
-          path: "**/TestResults/*/coverage.cobertura.xml"
+          name: testresults
+          path: TestResults
 
   react-build:
     runs-on: ubuntu-latest
@@ -83,12 +89,17 @@ jobs:
         run: npm run build
 
   docker-build:
-    if: github.ref == 'refs/heads/main'
+    needs: [build-test, react-build]
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Build StockSim.Web image (no push)
         uses: docker/build-push-action@v6
         with:
@@ -97,6 +108,7 @@ jobs:
           platforms: linux/amd64
           file: src/StockSim.Web/Dockerfile
           context: .
+          
       - name: Build StockSim.MarketFeed image (no push)
         uses: docker/build-push-action@v6
         with:
