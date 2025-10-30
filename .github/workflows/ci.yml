@@ -2,19 +2,39 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
+
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_NOLOGO: true
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+
+      - name: Cache NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Restore
         run: dotnet restore
@@ -22,8 +42,34 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+        working-directory: e2e
+        if: ${{ hashFiles('e2e/package.json') != '' }}
+
       - name: Test
-        run: dotnet test --configuration Release --no-build --logger "trx;LogFileName=testresults.trx"
+        run: |
+          dotnet test \
+            --configuration Release \
+            --no-build \
+            --results-directory ./TestResults \
+            --logger "trx;LogFileName=testresults.trx" \
+            --collect:"XPlat Code Coverage"
+
+      - name: Test Report
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: dorny/test-reporter@v1
+        with:
+          name: .NET Tests
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testresults
+          path: TestResults
 
   react-build:
     runs-on: ubuntu-latest
@@ -43,12 +89,17 @@ jobs:
         run: npm run build
 
   docker-build:
-    if: github.ref == 'refs/heads/main'
+    needs: [build-test, react-build]
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
       - name: Build StockSim.Web image (no push)
         uses: docker/build-push-action@v6
         with:
@@ -57,6 +108,7 @@ jobs:
           platforms: linux/amd64
           file: src/StockSim.Web/Dockerfile
           context: .
+          
       - name: Build StockSim.MarketFeed image (no push)
         uses: docker/build-push-action@v6
         with:

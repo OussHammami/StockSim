@@ -60,8 +60,8 @@ public class PortfolioTests
         p.ApplyFill(oid, OrderSide.Buy, sym, Quantity.From(5), Price.From(100));
 
         Assert.Equal(500m, p.Cash.Amount);
-        var pos = p.Positions["MSFT"];
-        Assert.Equal(5m, pos.Quantity);
+        var pos = p.GetPosition("MSFT");
+        Assert.Equal(5m, pos?.Quantity);
         Assert.True(p.DomainEvents.OfType<FillApplied>().Any());
     }
 
@@ -81,8 +81,8 @@ public class PortfolioTests
 
         p.ApplyFill(oid, OrderSide.Sell, sym, Quantity.From(4), Price.From(120));
 
-        var pos = p.Positions["TSLA"];
-        Assert.Equal(6m, pos.Quantity);
+        var pos = p.GetPosition("TSLA");
+        Assert.Equal(6m, pos?.Quantity);
         Assert.Equal(480m, p.Cash.Amount); // 4 * 120
         Assert.Equal(0m, p.ReservedFor(sym));
         Assert.True(p.DomainEvents.OfType<FillApplied>().Any());

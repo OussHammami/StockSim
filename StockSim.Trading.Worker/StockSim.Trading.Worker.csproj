@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\StockSim.Application\StockSim.Application.csproj" />
+    <ProjectReference Include="..\src\StockSim.Infrastructure\StockSim.Infrastructure.csproj" />
+  </ItemGroup>
+
+   <ItemGroup>
+   	<PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.13.1" />
+   	<PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+   	<PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.13.1-beta.1" />
+   	<PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.7.0" />
+	<PackageReference Include="OpenTelemetry.Instrumentation.Runtime " Version="1.12.0" />
+   </ItemGroup>
+</Project>

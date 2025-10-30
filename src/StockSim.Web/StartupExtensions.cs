@@ -10,6 +10,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
+using StockSim.Application.MarketData.Feed;
 using StockSim.Infrastructure;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
@@ -33,6 +34,7 @@ public static class StartupExtensions
             .WithMetrics(m => m
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
+                .AddMeter("StockSim.Orders", "StockSim.Portfolio")
                 .AddOtlpExporter()
                 .AddPrometheusExporter())
             .WithTracing(t => t
@@ -48,7 +50,7 @@ public static class StartupExtensions
                             act?.SetTag("peer.service", "stocksim.marketfeed");
                     };
                 })
-                .AddSource("StockSim.UI", "StockSim.Orders")
+                .AddSource("StockSim.UI", "StockSim.Orders", "StockSim.Portfolio")
                 .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans"))
                 .AddOtlpExporter());
         return builder;
@@ -109,13 +111,15 @@ public static class StartupExtensions
     }
 
     public static IServiceCollection AddUiServices(this IServiceCollection services)
-    {        
+    {
         services.AddMudServices(o =>
         {
             o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
             o.SnackbarConfiguration.VisibleStateDuration = 2500;
         });
         services.AddSignalR();
+        services.AddSingleton<IMarketDataFeed, FakeMarketDataFeed>();
+        services.AddHostedService<MarketDataStreamer>();
         services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
         services.AddSingleton<IThemePrefService, ThemePrefService>();
         services.AddHttpContextAccessor();
@@ -183,6 +187,8 @@ public static class StartupExtensions
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
+        app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
+        app.MapGet("/readyz", () => Results.Ok("ready")).AllowAnonymous();
         app.UseAntiforgery();
         return app;
     }
