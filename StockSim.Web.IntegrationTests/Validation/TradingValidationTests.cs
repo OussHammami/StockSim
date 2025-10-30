@@ -1,10 +1,12 @@
-﻿using System.Net;
-using System.Net.Http.Json;
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using StockSim.Application.Portfolios;
 using StockSim.Domain.ValueObjects;
 using StockSim.Web.IntegrationTests.Fakes;
 using StockSim.Web.IntegrationTests.TestHost;
+using System.Net;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace StockSim.Web.IntegrationTests.Validation;
 
@@ -30,8 +32,8 @@ public class TradingValidationTests : IClassFixture<TestingWebAppFactory>
         {
             UserId = (Guid?)U,
             Symbol = "",
-            Side = Domain.Orders.OrderSide.Buy,
-            Type = Domain.Orders.OrderType.Market,
+            Side = StockSim.Domain.Orders.OrderSide.Buy,
+            Type = StockSim.Domain.Orders.OrderType.Market,
             Quantity = 1m,
             LimitPrice = (decimal?)null
         };
@@ -39,10 +41,19 @@ public class TradingValidationTests : IClassFixture<TestingWebAppFactory>
         var res = await client.PostAsJsonAsync("/api/trading/orders", dto);
         res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
-        var pd = await res.Content.ReadFromJsonAsync<ProblemDetailsLike>();
-        pd.Should().NotBeNull();
-        pd!.Type.Should().Be("about:blank");
-        pd.Title.Should().NotBeNullOrWhiteSpace();
+        // Prefer validation problem details for 400 from model validation
+        var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+
+        // basic ProblemDetails fields
+        json.GetProperty("status").GetInt32().Should().Be(400);
+
+        // do NOT pin 'type'; just ensure it exists and is non-empty
+        json.TryGetProperty("type", out var type).Should().BeTrue();
+        type.GetString().Should().NotBeNullOrWhiteSpace();
+
+        // validation payload shape: has "errors" with a key for Symbol
+        json.TryGetProperty("errors", out var errors).Should().BeTrue();
+        errors.TryGetProperty("Symbol", out _).Should().BeTrue();
     }
 
     [Fact]
@@ -85,10 +96,11 @@ public class TradingValidationTests : IClassFixture<TestingWebAppFactory>
     public async Task Valid_Limit_Order_Returns_201()
     {
         // seed cash so validation passes end-to-end
-        var repo = _factory.Services.GetRequiredService<InMemoryPortfolioRepository>();
+        var repo = _factory.Services.GetRequiredService<IPortfolioRepository>();
+        var mem = (InMemoryPortfolioRepository) repo;
         var p = new Domain.Portfolio.Portfolio(PortfolioId.New(), U);
         p.Deposit(Money.From(1000m));
-        repo.Seed(p);
+        mem.Seed(p);
 
         var client = Client();
         var dto = new
