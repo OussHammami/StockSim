@@ -7,10 +7,10 @@ namespace StockSim.Domain.Portfolio;
 /// </summary>
 public sealed class Position
 {
-    public Symbol Symbol { get; }
+    public Symbol Symbol { get; private set; } = null!;
     public decimal Quantity { get; private set; }
     public decimal AvgCost { get; private set; } // per unit
-
+    private Position() { }
     public Position(Symbol symbol)
     {
         Symbol = symbol;

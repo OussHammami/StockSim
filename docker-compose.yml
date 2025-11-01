@@ -93,5 +93,27 @@ services:
       rabbitmq: { condition: service_healthy }
       marketfeed: { condition: service_started }
 
+  trading-worker:
+    build:
+      context: .          # repo root
+      dockerfile: src/StockSim.Trading.Worker/Dockerfile
+      args:
+        PROJECT: src/StockSim.Trading.Worker/StockSim.Trading.Worker.csproj  # adjust if different
+    environment:
+      ConnectionStrings__TradingDb: Host=postgres;Database=stocksim_trading;Username=stocksim;Password=stocksim
+      ConnectionStrings__PortfolioDb: Host=postgres;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
+    depends_on: [ postgres ]
+
+  portfolio-worker:
+    build:
+      context: .
+      dockerfile: src/StockSim.Portfolio.Worker/Dockerfile
+      args:
+        PROJECT: src/StockSim.Portfolio.Worker/StockSim.Portfolio.Worker.csproj
+    environment:
+      ConnectionStrings__TradingDb: Host=postgres;Database=stocksim_trading;Username=stocksim;Password=stocksim
+      ConnectionStrings__PortfolioDb: Host=postgres;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
+    depends_on: [ postgres ]
+
 volumes:
   pgdata: {}

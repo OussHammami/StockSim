@@ -11,6 +11,7 @@ WORKDIR /src
 COPY src/StockSim.Domain/*.csproj src/StockSim.Domain/
 COPY src/StockSim.Application/*.csproj src/StockSim.Application/
 COPY src/StockSim.Infrastructure/*.csproj src/StockSim.Infrastructure/
+COPY src/StockSim.Contracts/*.csproj      src/StockSim.Contracts/
 COPY src/StockSim.Web/*.csproj src/StockSim.Web/
 RUN dotnet restore src/StockSim.Web/StockSim.Web.csproj
 
@@ -18,6 +19,7 @@ RUN dotnet restore src/StockSim.Web/StockSim.Web.csproj
 COPY src/StockSim.Domain/         src/StockSim.Domain/
 COPY src/StockSim.Application/    src/StockSim.Application/
 COPY src/StockSim.Infrastructure/ src/StockSim.Infrastructure/
+COPY src/StockSim.Contracts/      src/StockSim.Contracts/
 COPY src/StockSim.Web/            src/StockSim.Web/
 ARG BUILD_CONFIGURATION=Debug
 # RUN dotnet publish src/StockSim.Web/StockSim.Web.csproj -c Release -o /out

@@ -34,7 +34,7 @@ public sealed class MarketDataStreamer : BackgroundService
             };
 
             // broadcast to group per symbol and to all
-            await _hub.Clients.Group(q.Symbol).SendAsync("quote", payload, stoppingToken);
+            await _hub.Clients.Group(q.Symbol.Value).SendAsync("quote", payload, stoppingToken);
             await _hub.Clients.All.SendAsync("quote", payload, stoppingToken);
         }
     }

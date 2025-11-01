@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.ValueObjects;
+using StockSim.Web.Auth;
+using System.Security.Claims;
 
 namespace StockSim.Web.Controllers;
 
@@ -16,7 +18,7 @@ public sealed class PortfolioController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Summary(CancellationToken ct)
     {
-        var userId = GetUserId();
+        var userId = User.GetStableUserId();
         var p = await _svc.GetOrCreateAsync(userId, ct);
 
         return Ok(new
@@ -37,15 +39,9 @@ public sealed class PortfolioController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Deposit([FromBody] DepositDto dto, CancellationToken ct)
     {
-        var userId = dto.UserId ?? GetUserId();
+        var userId = dto.UserId ?? User.GetStableUserId();
         await _svc.DepositAsync(userId, Money.From(dto.Amount), ct);
         return NoContent();
-    }
-
-    private Guid GetUserId()
-    {
-        var sub = User.FindFirst("sub")?.Value ?? User.FindFirst("uid")?.Value;
-        return Guid.TryParse(sub, out var id) ? id : throw new InvalidOperationException("User id not found.");
     }
 
     public sealed record DepositDto(decimal Amount, Guid? UserId);

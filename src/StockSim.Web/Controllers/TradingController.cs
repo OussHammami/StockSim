@@ -3,6 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
 using StockSim.Domain.ValueObjects;
+using StockSim.Web.Auth;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace StockSim.Web.Controllers;
 
@@ -18,7 +22,7 @@ public sealed class TradingController : ControllerBase
     [Authorize]
     public async Task<ActionResult<string>> Place([FromBody] PlaceOrderDto dto, CancellationToken ct)
     {
-        var userId = dto.UserId ?? GetUserId();
+        var userId = dto.UserId ?? User.GetStableUserId();
         var id = await _orders.PlaceAsync(new PlaceOrder(
             userId,
             dto.Symbol,
@@ -34,7 +38,7 @@ public sealed class TradingController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Cancel([FromRoute] string id, [FromBody] CancelOrderDto dto, CancellationToken ct)
     {
-        var userId = dto.UserId ?? GetUserId();
+        var userId = dto.UserId ?? User.GetStableUserId();
         await _orders.CancelAsync(new CancelOrder(userId, OrderId.From(Guid.Parse(id)), dto.Reason), ct);
         return NoContent();
     }
@@ -59,13 +63,6 @@ public sealed class TradingController : ControllerBase
             order.FilledQuantity,
             order.AverageFillPrice
         });
-    }
-
-    private Guid GetUserId()
-    {
-        // Replace with your auth user id resolution as needed
-        var sub = User.FindFirst("sub")?.Value ?? User.FindFirst("uid")?.Value;
-        return Guid.TryParse(sub, out var id) ? id : throw new InvalidOperationException("User id not found.");
     }
 
     public sealed record PlaceOrderDto(

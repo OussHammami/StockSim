@@ -16,8 +16,10 @@ using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Identity;
 using StockSim.Web.Components.Account;
 using StockSim.Web.Health;
+using StockSim.Web.Http;
 using StockSim.Web.Hubs;
 using StockSim.Web.Services;
+using System.Diagnostics;
 
 namespace StockSim.Web;
 
@@ -94,7 +96,7 @@ public static class StartupExtensions
         services.AddScoped<HubStatusService>();
         services.AddHostedService<OrderConsumer>();
         services.AddHostedService<OutboxDispatcher>();
-        services.AddHostedService<QuoteMatcherService>();
+        //services.AddHostedService<QuoteMatcherService>();
         services.AddSingleton<LastQuotesCache>();
 
         services.AddHealthChecks()
@@ -110,15 +112,35 @@ public static class StartupExtensions
         return services;
     }
 
-    public static IServiceCollection AddUiServices(this IServiceCollection services)
+    public static IServiceCollection AddUiServices(this IServiceCollection services, ConfigurationManager configuration, IWebHostEnvironment environment)
     {
         services.AddMudServices(o =>
         {
             o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
             o.SnackbarConfiguration.VisibleStateDuration = 2500;
         });
-        services.AddSignalR();
+        services.AddSignalR(o =>
+        {
+            o.EnableDetailedErrors = environment.IsDevelopment();
+        });
         services.AddSingleton<IMarketDataFeed, FakeMarketDataFeed>();
+
+        services.AddHttpContextAccessor();
+        services.AddTransient<ForwardAuthHeadersHandler>();
+
+        services.AddHttpClient<TradingClient>((sp, c) =>
+        {
+            var ctx = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+            var baseUri = new Uri($"{ctx!.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}");
+            c.BaseAddress = baseUri;
+        }).AddHttpMessageHandler<ForwardAuthHeadersHandler>();
+        services.AddHttpClient<PortfolioClient>((sp, c) =>
+        {
+            var ctx = sp.GetRequiredService<IHttpContextAccessor>().HttpContext;
+            var baseUri = new Uri($"{ctx!.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}");
+            c.BaseAddress = baseUri;
+        }).AddHttpMessageHandler<ForwardAuthHeadersHandler>();
+        services.AddScoped<QuotesHubClient>();
         services.AddHostedService<MarketDataStreamer>();
         services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
         services.AddSingleton<IThemePrefService, ThemePrefService>();
@@ -174,6 +196,7 @@ public static class StartupExtensions
         if (app.Environment.IsDevelopment())
         {
             app.UseMigrationsEndPoint();
+            app.UseDeveloperExceptionPage();
         }
         else
         {
@@ -183,7 +206,15 @@ public static class StartupExtensions
         
         app.UseHttpsRedirection();
         app.UseStaticFiles();
-        app.UseSerilogRequestLogging();
+        app.UseSerilogRequestLogging(opts =>
+        {
+            opts.EnrichDiagnosticContext = (dc, http) =>
+            {
+                dc.Set("UserId", http.User?.Identity?.Name);
+                dc.Set("TraceId", Activity.Current?.Id ?? http.TraceIdentifier);
+                dc.Set("Path", http.Request.Path);
+            };
+        });
         app.UseRateLimiter();
         app.UseAuthentication();
         app.UseAuthorization();
@@ -196,17 +227,27 @@ public static class StartupExtensions
     public static IApplicationBuilder UseSecurityHeaders(this IApplicationBuilder app, string[] origins)
         => app.Use(async (ctx, next) =>
         {
-            // base CSP
-            // connect-src includes self, explicit origins, and ws/wss for those origins
+            var env = ctx.RequestServices.GetRequiredService<IHostEnvironment>();
+
             var connect = new List<string> { "'self'" };
             foreach (var o in origins)
             {
                 connect.Add(o);
-                // map http(s) origin to ws(s) for SignalR
                 if (o.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     connect.Add("wss://" + o.Substring("https://".Length));
                 if (o.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
                     connect.Add("ws://" + o.Substring("http://".Length));
+            }
+
+            // Loosen in Development: allow any localhost port and dev websockets
+            if (env.IsDevelopment())
+            {
+                connect.AddRange(new[]
+                {
+                    "http://localhost:*",
+                    "ws://localhost:*",
+                    "wss://localhost:*"
+                });
             }
 
             var csp =
@@ -215,14 +256,17 @@ public static class StartupExtensions
                 $"frame-ancestors 'none'; " +
                 $"img-src 'self' data:; " +
                 $"font-src 'self' data:; " +
-                $"style-src 'self' 'unsafe-inline'; " + // Blazor/Prerender styles
-                $"script-src 'self' 'unsafe-inline'; " + // Blazor Server boot script
+                $"style-src 'self' 'unsafe-inline'; " +
+                $"script-src 'self' 'unsafe-inline'; " +
                 $"connect-src {string.Join(' ', connect)}";
 
             ctx.Response.Headers["Content-Security-Policy"] = csp;
             ctx.Response.Headers["X-Content-Type-Options"] = "nosniff";
             ctx.Response.Headers["Referrer-Policy"] = "no-referrer";
             ctx.Response.Headers["X-Frame-Options"] = "DENY";
+            var traceId = Activity.Current?.Id ?? ctx.TraceIdentifier;
+            ctx.Response.Headers["X-TraceId"] = traceId;
+
             await next();
         });
 
