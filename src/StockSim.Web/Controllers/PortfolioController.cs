@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.ValueObjects;
 using StockSim.Web.Auth;
@@ -37,6 +38,7 @@ public sealed class PortfolioController : ControllerBase
 
     [HttpPost("deposit")]
     [Authorize]
+    [EnableRateLimiting("global")]
     public async Task<IActionResult> Deposit([FromBody] DepositDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();

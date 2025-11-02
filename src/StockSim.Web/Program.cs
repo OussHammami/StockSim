@@ -3,14 +3,18 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StockSim.Application;
 using StockSim.Infrastructure;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence;
 using StockSim.Web;
 using StockSim.Web.Components;
+using StockSim.Web.Demo;
 using StockSim.Web.Hubs;
 using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,7 +61,14 @@ builder.Services.AddEfRepositories(
              .LogTo(Console.WriteLine, LogLevel.Information);
         }
     });
-builder.Services.AddControllers().AddJsonOptions(o => { /* keep defaults */ });
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        {
+            o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            o.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+            o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        });
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 builder.Services.AddProblemDetails(options =>
@@ -69,7 +80,7 @@ builder.Services.AddProblemDetails(options =>
         ctx.ProblemDetails.Extensions["traceId"] = traceId;
 
         // add exception details only in Development
-        if (builder.Environment.IsDevelopment())
+        if (builder.Environment.IsDevelopment() || builder.Environment.EnvironmentName == "Testing")
         {
             var ex = ctx.HttpContext.Features.Get<IExceptionHandlerFeature>()?.Error;
             if (ex is not null)
@@ -81,11 +92,16 @@ builder.Services.AddProblemDetails(options =>
     };
 });
 
+builder.Services.Configure<DemoSeedOptions>(builder.Configuration.GetSection("DemoSeed"));
+
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddHostedService<DemoSeedHostedService>();
+    builder.Services.AddHostedService<IdentitySeedHostedService>();    
+}
 
 var app = builder.Build();
-
-// DB migrate
-app.ApplyMigrations<ApplicationDbContext>();
 
 if (app.Environment.IsEnvironment("Testing"))
 {
@@ -111,7 +127,7 @@ app.MapGet("/ui/theme", (bool dark, HttpContext ctx) =>
     var referer = ctx.Request.Headers.Referer.ToString();
     return Results.Redirect(string.IsNullOrEmpty(referer) ? "/" : referer);
 }).AllowAnonymous();
-
+app.UseAntiforgery();
 app.UseExceptionHandler(errorApp =>
 {
     errorApp.Run(async ctx =>
@@ -139,12 +155,23 @@ app.UseStatusCodePages();
 app.MapControllers();
 app.MapHub<QuotesHub>("/hubs/quotes");
 app.MapAppEndpoints<App, OrderHub>(CorsPolicy);
-app.MapPost("/admin/reset-demo", async (ApplicationDbContext db) =>
-{
-    await db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE \"Orders\",\"Positions\",\"Portfolios\",\"OutboxMessages\" RESTART IDENTITY CASCADE;");
-    return Results.Ok();
-}).RequireAuthorization(policy => policy.RequireRole("Admin"));
-
+if (builder.Environment.IsDevelopment())
+{   
+    app.MapPost("/admin/reset-demo", async (
+        StockSim.Infrastructure.Persistence.Trading.TradingDbContext tdb,
+        StockSim.Infrastructure.Persistence.Portfolioing.PortfolioDbContext pdb) =>
+    {
+        // stop workers during reset if they run in the same process
+        await tdb.Database.ExecuteSqlRawAsync("""
+            TRUNCATE TABLE "orders","outbox_messages" RESTART IDENTITY CASCADE;
+            """);
+        await pdb.Database.ExecuteSqlRawAsync("""
+            TRUNCATE TABLE "portfolios","positions","inbox_messages" RESTART IDENTITY CASCADE;
+            """);
+        return Results.Ok();
+    })
+    .RequireAuthorization(p => p.RequireRole("Admin"));
+}
 app.Run();
 
 namespace StockSim.Web

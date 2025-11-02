@@ -13,6 +13,7 @@ using StockSim.Application.Orders;
 using StockSim.Application.Orders.Handlers;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.Orders.Events;
+using Microsoft.Extensions.Logging;
 
 namespace StockSim.Web.IntegrationTests.TestHost;
 
@@ -47,7 +48,12 @@ public class TestingWebAppFactory : WebApplicationFactory<Program>
             services.AddAuthentication("Test")
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", _ => { });
         });
-
+        builder.ConfigureLogging(lb =>
+        {
+            lb.ClearProviders();
+            lb.AddConsole();
+            lb.AddDebug();
+        });
         // Optional: override config to disable messaging/health checks in Testing
         builder.ConfigureAppConfiguration((_, cfg) =>
         {

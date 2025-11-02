@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
 using StockSim.Domain.ValueObjects;
@@ -20,6 +21,7 @@ public sealed class TradingController : ControllerBase
 
     [HttpPost("orders")]
     [Authorize]
+    [EnableRateLimiting("global")]
     public async Task<ActionResult<string>> Place([FromBody] PlaceOrderDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();
@@ -36,6 +38,7 @@ public sealed class TradingController : ControllerBase
 
     [HttpPost("orders/{id}/cancel")]
     [Authorize]
+    [EnableRateLimiting("global")]
     public async Task<IActionResult> Cancel([FromRoute] string id, [FromBody] CancelOrderDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();

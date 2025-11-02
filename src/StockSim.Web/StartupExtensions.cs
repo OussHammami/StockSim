@@ -12,8 +12,10 @@ using OpenTelemetry.Trace;
 using Serilog;
 using StockSim.Application.MarketData.Feed;
 using StockSim.Infrastructure;
+using StockSim.Infrastructure.Identity;
 using StockSim.Infrastructure.Persistence;
-using StockSim.Infrastructure.Persistence.Identity;
+using StockSim.Infrastructure.Persistence.Portfolioing;
+using StockSim.Infrastructure.Persistence.Trading;
 using StockSim.Web.Components.Account;
 using StockSim.Web.Health;
 using StockSim.Web.Http;
@@ -64,7 +66,6 @@ public static class StartupExtensions
         services.AddScoped<IdentityUserAccessor>();
         services.AddScoped<IdentityRedirectManager>();
         services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-
         services.AddAuthentication(o =>
         {
             o.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -79,7 +80,7 @@ public static class StartupExtensions
             o.User.RequireUniqueEmail = true;
         })
         .AddRoles<IdentityRole>()
-        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddEntityFrameworkStores<AuthDbContext>()
         .AddSignInManager()
         .AddDefaultTokenProviders();
         
@@ -91,16 +92,11 @@ public static class StartupExtensions
     public static IServiceCollection AddDomainServices(this IServiceCollection services, IConfiguration cfg)
     {
         services.AddInfrastructure(cfg);
-        services.Configure<DemoOptions>(cfg.GetSection("DEMO"));
-        services.AddHostedService<DemoSeedHostedService>();
-        services.AddScoped<HubStatusService>();
-        services.AddHostedService<OrderConsumer>();
-        services.AddHostedService<OutboxDispatcher>();
-        //services.AddHostedService<QuoteMatcherService>();
-        services.AddSingleton<LastQuotesCache>();
 
         services.AddHealthChecks()
-            .AddDbContextCheck<ApplicationDbContext>("db", tags: new[] { "ready" })
+            .AddDbContextCheck<TradingDbContext>("trading-db", tags: new[] { "ready" })
+            .AddDbContextCheck<PortfolioDbContext>("portfolio-db", tags: new[] { "ready" })
+            .AddDbContextCheck<AuthDbContext>("auth-db", tags: new[] { "ready" })
             .AddCheck<RabbitHealthCheck>("rabbit", tags: new[] { "ready" });
 
         services.AddHttpClient("MarketFeed", (sp, client) =>
@@ -163,14 +159,6 @@ public static class StartupExtensions
             o.AccessDeniedPath = "/Account/AccessDenied";
         });
 
-        services.AddAntiforgery(o =>
-        {
-            o.Cookie.Name = ".stocksim.af";
-            o.Cookie.HttpOnly = true;
-            o.Cookie.SameSite = SameSiteMode.Strict;
-            o.Cookie.SecurePolicy = env.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
-        });
-
         services.AddRateLimiter(o =>
         {
             o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -220,7 +208,6 @@ public static class StartupExtensions
         app.UseAuthorization();
         app.MapGet("/healthz", () => Results.Ok("ok")).AllowAnonymous();
         app.MapGet("/readyz", () => Results.Ok("ready")).AllowAnonymous();
-        app.UseAntiforgery();
         return app;
     }
 

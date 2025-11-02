@@ -76,4 +76,6 @@ public sealed class OrderService : IOrderService
     }
 
     public Task<Order?> GetAsync(OrderId id, CancellationToken ct = default) => _orders.GetAsync(id, ct);
+
+    public Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, CancellationToken ct) => _orders.GetByUserAsync(userId, ct: ct);
 }

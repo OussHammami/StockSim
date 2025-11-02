@@ -5,6 +5,7 @@ using StockSim.Application.Abstractions;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Portfolios;
+using StockSim.Infrastructure.Identity;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
@@ -12,7 +13,6 @@ using StockSim.Infrastructure.Persistence;
 using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
 using StockSim.Infrastructure.Repositories;
-using StockSim.Web.Services;
 
 namespace StockSim.Infrastructure;
 
@@ -20,22 +20,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration cfg)
     {
-        var cs = cfg.GetConnectionString("DefaultConnection")
-                 ?? throw new InvalidOperationException("Missing DefaultConnection.");
+        var cs = cfg.GetConnectionString("AuthDb")
+                 ?? throw new InvalidOperationException("Missing AuthDb Connection.");
         services.AddDatabaseDeveloperPageExceptionFilter();
 
-        services.AddDbContextPool<ApplicationDbContext>(o => o.UseNpgsql(cs));
-        services.AddPooledDbContextFactory<ApplicationDbContext>(o => o.UseNpgsql(cs));
-
-
-        services.AddScoped<Application.Abstractions.IPortfolioService, Web.Services.PortfolioService>();
-        services.AddScoped<IOrderQueries, OrderQueries>();
+        services.AddDbContextPool<AuthDbContext>(o => o.UseNpgsql(cs));
+        services.AddPooledDbContextFactory<AuthDbContext>(o => o.UseNpgsql(cs));
 
         services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
         services.AddSingleton<RabbitConnection>();
-        services.AddSingleton<IOrderPublisher, OrderPublisher>();
-
-        services.AddSingleton<IClock, SystemClock>();
         return services;
     }
     

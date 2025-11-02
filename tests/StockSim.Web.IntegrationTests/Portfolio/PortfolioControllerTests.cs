@@ -1,6 +1,7 @@
-﻿using System.Net.Http.Json;
-using FluentAssertions;
+﻿using FluentAssertions;
+using Microsoft.VisualStudio.TestPlatform.Utilities;
 using StockSim.Web.IntegrationTests.TestHost;
+using System.Net.Http.Json;
 
 namespace StockSim.Web.IntegrationTests.Portfolio;
 public class PortfolioControllerTests : IClassFixture<TestingWebAppFactory>
@@ -15,6 +16,7 @@ public class PortfolioControllerTests : IClassFixture<TestingWebAppFactory>
         client.DefaultRequestHeaders.Authorization = new("Test");
 
         var s1 = await client.GetAsync("/api/portfolio/summary");
+        var body = await s1.Content.ReadAsStringAsync();
         s1.EnsureSuccessStatusCode();
 
         var dep = new { Amount = 123.45m, UserId = (Guid?)null };
