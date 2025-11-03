@@ -12,6 +12,7 @@ using StockSim.Web;
 using StockSim.Web.Components;
 using StockSim.Web.Demo;
 using StockSim.Web.Hubs;
+using StockSim.Web.Options;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -25,6 +26,7 @@ builder.AddObservability();
 
 // App services
 builder.Services.AddAppIdentity(builder.Configuration);
+
 builder.Services.AddDomainServices(builder.Configuration);
 builder.Services.AddCors(o =>
 {

@@ -1,35 +1,74 @@
-﻿using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StockSim.Web.Options;
 
 namespace StockSim.Web.Services;
 
+public sealed record QuoteMsg(string Symbol, decimal Bid, decimal Ask, decimal? Last, DateTimeOffset Ts);
+
 public sealed class QuotesHubClient : IAsyncDisposable
 {
-    private readonly NavigationManager _nav;
-    public HubConnection? Connection { get; private set; }
+    private readonly ILogger<QuotesHubClient> _log;
+    private readonly MarketFeedOptions _opt;
+    private HubConnection? _conn;
+
+    public QuotesHubClient(IOptions<MarketFeedOptions> opt, ILogger<QuotesHubClient> log)
+    {
+        _opt = opt.Value;
+        _log = log;
+        if (string.IsNullOrWhiteSpace(_opt.BaseUrl))
+            throw new InvalidOperationException("MarketFeed:BaseUrl is not configured.");
+    }
+
     public event Action<QuoteMsg>? OnQuote;
-
-    public sealed record QuoteMsg(string Symbol, decimal Bid, decimal Ask, decimal? Last, DateTimeOffset Ts);
-
-    public QuotesHubClient(NavigationManager nav) => _nav = nav;
 
     public async Task StartAsync(CancellationToken ct = default)
     {
-        Connection ??= new HubConnectionBuilder()
-            .WithUrl(_nav.ToAbsoluteUri("/hubs/quotes"))
+        if (_conn is { State: HubConnectionState.Connected })
+            return;
+
+        var url = _opt.HubUrl;
+        _conn = new HubConnectionBuilder()
+            .WithUrl(url)
             .WithAutomaticReconnect()
             .Build();
 
-        Connection.On<QuoteMsg>("quote", m => OnQuote?.Invoke(m));
-        if (Connection.State != HubConnectionState.Connected)
-            await Connection.StartAsync(ct);
+        _conn.On<QuoteMsg>("quote", msg =>
+        {
+            try { OnQuote?.Invoke(msg); }
+            catch (Exception ex) { _log.LogWarning(ex, "OnQuote handler threw."); }
+        });
+
+        await _conn.StartAsync(ct);
+        _log.LogInformation("Connected to MarketFeed hub: {Url}", url);
     }
 
-    public Task SubscribeAsync(string symbol, CancellationToken ct = default) =>
-        Connection is null ? Task.CompletedTask : Connection.InvokeAsync("Subscribe", symbol, ct);
+    public async Task StopAsync(CancellationToken ct = default)
+    {
+        if (_conn is null) return;
+        try
+        {
+            await _conn.StopAsync(ct);
+            await _conn.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Error stopping quotes hub.");
+        }
+        finally
+        {
+            _conn = null;
+        }
+    }
 
     public async ValueTask DisposeAsync()
     {
-        if (Connection is not null) await Connection.DisposeAsync();
+        if (_conn is not null)
+        {
+            try { await _conn.DisposeAsync(); } catch { }
+            _conn = null;
+        }
+        await Task.CompletedTask;
     }
 }

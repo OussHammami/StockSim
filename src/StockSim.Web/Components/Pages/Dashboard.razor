@@ -4,206 +4,193 @@
 @using MudBlazor
 @using StockSim.Domain.Orders
 @using StockSim.Web.Services
+@using static StockSim.Web.Services.TradingClient
+@using static StockSim.Web.Services.PortfolioClient
 @inject PortfolioClient PortfolioClient
 @inject TradingClient TradingClient
 @inject QuotesHubClient Quotes
 
+<MudSnackbarProvider />
 <MudPopoverProvider />
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6">
+<MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 
-    <MudGrid GutterSize="3">
-        <!-- Summary cards -->
-        <MudItem xs="12" md="4">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6">Portfolio</MudText>
-                <MudDivider Class="my-2" />
-                <MudStack Row="true" Spacing="2">
-                    <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">
-                        Cash: @(_summary?.Cash.ToString("0.##") ?? "-")
-                    </MudChip>
-                    <MudChip T="string" Color="Color.Warning" Variant="Variant.Filled">
-                        Reserved: @(_summary?.ReservedCash.ToString("0.##") ?? "-")
-                    </MudChip>
-                </MudStack>
+<MudGrid Class="mt-2">
+    <!-- Left column: everything except quotes -->
+    <MudItem xxl="8" lg="8" md="12" sm="12">
+        <MudPaper Class="p-3 mb-3">
+            <MudGrid>
+                <MudItem xxl="3" lg="4" md="6" sm="12">
+                    <MudText Typo="Typo.h6">Trade</MudText>
+                    <MudTextField T="string" @bind-Value="_form.Symbol" Label="Symbol" Required="true" />
+                    <MudNumericField T="decimal" @bind-Value="_form.Quantity" Label="Quantity" Required="true" Min="0.0001m" />
+                    <MudSelect T="OrderType"
+                               Label="Type"
+                               Value="_form.Type"
+                               ValueChanged="OnTypeChanged"
+                               ValueExpression="() => _form.Type">
+                        <MudSelectItem Value="@(OrderType.Market)">Market</MudSelectItem>
+                        <MudSelectItem Value="@(OrderType.Limit)">Limit</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect T="OrderSide" @bind-Value="_form.Side" Label="Side">
+                        <MudSelectItem Value="@(OrderSide.Buy)">Buy</MudSelectItem>
+                        <MudSelectItem Value="@(OrderSide.Sell)">Sell</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xxl="3" lg="4" md="6" sm="12">
+                    <MudText Typo="Typo.h6">Account</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string">Cash: @(_summary?.Cash.ToString("0.##") ?? "-")</MudListItem>
+                        <MudListItem T="string">Reserved: @(_summary?.ReservedCash.ToString("0.##") ?? "-")</MudListItem>
 
-                <MudStack Class="mt-4" Spacing="2">
-                    <MudText Typo="Typo.subtitle2">Quick deposit</MudText>
-                    <MudNumericField @bind-Value="_depositAmount" Adornment="Adornment.Start" AdornmentText="$" Min="0" />
-                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="DepositAsync" Disabled="_busy">
-                        @if (_busy) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
-                        Deposit
-                    </MudButton>
-                    @if (!string.IsNullOrWhiteSpace(_info))
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Info">@_info</MudText>
-                    }
-                </MudStack>
-            </MudPaper>
-        </MudItem>
-
-        <!-- Positions table -->
-        <MudItem xs="12" md="8">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6">Positions</MudText>
-                <MudDivider Class="my-2" />
-                <MudTable Items="_summary?.Positions ?? Array.Empty<PortfolioClient.PositionDto>()"
-                          Dense="true" Hover="true" Bordered="true">
-                    <HeaderContent>
-                        <MudTh>Symbol</MudTh>
-                        <MudTh class="text-right">Qty</MudTh>
-                        <MudTh class="text-right">Avg Cost</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
-                        <MudTd DataLabel="Qty" Class="text-right">@context.Quantity</MudTd>
-                        <MudTd DataLabel="Avg Cost" Class="text-right">@context.AvgCost</MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <MudText Class="pa-4" Typo="Typo.body2">No positions yet.</MudText>
-                    </NoRecordsContent>
-                </MudTable>
-            </MudPaper>
-        </MudItem>
-
-        <!-- Place order -->
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6">Place Order</MudText>
-                <MudDivider Class="my-2" />
-                <EditForm Model="_form" OnValidSubmit="PlaceOrderAsync">
-                    <MudGrid GutterSize="2">
-                        <MudItem xs="6">
-                            <MudTextField T="string" @bind-Value="_form.Symbol" Label="Symbol" Required="true" />
-                        </MudItem>
-                        <MudItem xs="6">
-                            <MudNumericField T="decimal" @bind-Value="_form.Quantity" Label="Quantity" Required="true" Min="0.0001m" />
-                        </MudItem>
-                        <MudItem xs="6">
-                            <MudSelect T="OrderSide" @bind-Value="_form.Side" Label="Side">
-                                <MudSelectItem Value="@(OrderSide.Buy)">Buy</MudSelectItem>
-                                <MudSelectItem Value="@(OrderSide.Sell)">Sell</MudSelectItem>
-                            </MudSelect>
-                            <MudSelect T="OrderType"
-                                       Label="Type"
-                                       Value="_form.Type"
-                                       ValueChanged="OnTypeChanged"
-                                       ValueExpression="() => _form.Type">
-                                <MudSelectItem Value="@(OrderType.Market)">Market</MudSelectItem>
-                                <MudSelectItem Value="@(OrderType.Limit)">Limit</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
 
                         @if (_form.Type == OrderType.Limit)
                         {
                             <MudNumericField T="decimal?" @bind-Value="_form.LimitPrice" Label="Limit price" Min="0" />
                         }
+                        <MudStack Row="true" Spacing="2" Class="mt-3">
+                            <MudNumericField T="decimal" @bind-Value="_deposit" Min="0" Label="Deposit amount" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DepositAsync">Deposit</MudButton>
+                        </MudStack>
+                    </MudList>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
-                        <MudItem xs="12">
-                            <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_busy" Type="Button" OnClick="PlaceOrderAsync">
-                                @if (_busy) { <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" /> }
-                                Submit
-                            </MudButton>
-                            @if (!string.IsNullOrWhiteSpace(_orderInfo))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Info" Class="ml-3">@_orderInfo</MudText>
-                            }
-                        </MudItem>
-                    </MudGrid>
-                </EditForm>
-            </MudPaper>
-        </MudItem>
+        <MudPaper Class="p-3 mb-3">
+            <MudText Typo="Typo.h6">Recent Orders</MudText>
 
-        <!-- Live Quote -->
-        <MudItem xs="12" md="6">
-            <MudPaper Class="pa-4">
-                <MudText Typo="Typo.h6">Live Quote</MudText>
-                <MudDivider Class="my-2" />
-                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-                    <MudTextField @bind-Value="_watchSymbol" Label="Symbol" Immediate="true" />
-                    <MudButton Variant="Variant.Outlined" OnClick="SubscribeQuoteAsync">Subscribe</MudButton>
-                </MudStack>
+            <MudTable Items="_orders ?? Array.Empty<TradingClient.PlaceOrderDto>()">
+                <NoRecordsContent>
+                    <MudText Color="Color.Secondary">No orders.</MudText>
+                </NoRecordsContent>
+                <HeaderContent>
+                    <MudTh>Time</MudTh>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh align="right">Qty</MudTh>
+                    <MudTh align="right">Status</MudTh>
+                    <MudTh align="right">Fill</MudTh>
+                    <MudTh align="right">Type</MudTh>
+                    <MudTh align="right">Limit</MudTh>
+                </HeaderContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
 
-                @if (_quote is not null)
-                {
-                    <MudStack Class="mt-4" Row="true" Spacing="2">
-                        <MudChip T="string" Color="Color.Info" Variant="Variant.Filled">@_quote.Symbol</MudChip>
-                        <MudChip T="string" Color="Color.Success" Variant="Variant.Filled">Bid @_quote.Bid</MudChip>
-                        <MudChip T="string" Color="Color.Error" Variant="Variant.Filled">Ask @_quote.Ask</MudChip>
-                        <MudChip T="string" Variant="Variant.Outlined">Last @_quote.Last</MudChip>
-                    </MudStack>
-                    <MudText Typo="Typo.caption" Class="mt-2">Updated @_quote.Ts.ToLocalTime()</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Class="mt-2">No quote yet.</MudText>
-                }
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
+        <MudPaper Class="p-3 mb-3">
+            <MudText Typo="Typo.h6">Positions</MudText>
+            <MudDivider Class="my-2" />
+            <MudTable Items="_summary?.Positions ?? Array.Empty<PortfolioClient.PositionDto>()"
+                      Dense="true" Hover="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh class="text-right">Qty</MudTh>
+                    <MudTh class="text-right">Avg Cost</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
+                    <MudTd DataLabel="Qty" Class="text-right">@context.Quantity</MudTd>
+                    <MudTd DataLabel="Avg Cost" Class="text-right">@context.AvgCost</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Class="pa-4" Typo="Typo.body2">No positions yet.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
 
-</MudContainer>
+    <!-- Right column: quotes -->
+    <MudItem xxl="4" lg="4" md="12" sm="12">
+        <MudPaper Class="p-3 mb-3">
+            <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
+
+            <!--<MudChip T="string"
+             Color="@(HubStatus.Connected ? Color.Success : Color.Error)"
+             Variant="Variant.Outlined">
+                @(HubStatus.Connected ? "Live" : "Disconnected")
+            </MudChip>-->
+
+
+            <MudTable Items="_quotes.Values.OrderBy(q => q.Symbol)" Dense="true" Hover="true" Class="mt-2">
+                <HeaderContent>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh>Bid</MudTh>
+                    <MudTh>Ask</MudTh>
+                    <MudTh>Last</MudTh>
+                    <MudTh>Spread</MudTh>
+                    <MudTh>Time</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Symbol</MudTd>
+                    <MudTd>@context.Bid.ToString("0.####")</MudTd>
+                    <MudTd>@context.Ask.ToString("0.####")</MudTd>
+                    <MudTd>@(context.Last?.ToString("0.####") ?? "-")</MudTd>
+                    <MudTd>@((context.Ask - context.Bid).ToString("0.####"))</MudTd>
+                    <MudTd>@context.Ts.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No quotes yet.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
 
 @code
 {
-    // portfolio
-    private PortfolioClient.SummaryDto? _summary;
-    private decimal _depositAmount = 100m;
+    private SummaryDto? _summary;
+    private PlaceOrderDto[] _orders;
+    private decimal _deposit = 0m;
     private string _info = "";
-
-    // order
-    private OrderForm _form = new()
-    {
-        Symbol = "AAPL",
-        Quantity = 1m,
-        Side = OrderSide.Buy,
-        Type = OrderType.Limit,
-        LimitPrice = 100m
-    };
+    private string _orderInfo = "";
+    private bool _busy;
 
     private sealed class OrderForm
     {
-        public string Symbol { get; set; } = "";
-        public decimal Quantity { get; set; }
-        public OrderSide Side { get; set; }
-        public OrderType Type { get; set; }
+        public string Symbol { get; set; } = "AAPL";
+        public OrderSide Side { get; set; } = OrderSide.Buy;
+        public OrderType Type { get; set; } = OrderType.Market;
+        public decimal Quantity { get; set; } = 1m;
         public decimal? LimitPrice { get; set; }
     }
-    private string _orderInfo = "";
+    private readonly OrderForm _form = new();
 
-    // quotes
-    private string _watchSymbol = "AAPL";
-    private QuotesHubClient.QuoteMsg? _quote;
-
-    private bool _busy;
+    private sealed class QuoteVm
+    {
+        public string Symbol { get; init; } = "";
+        public decimal Bid { get; set; }
+        public decimal Ask { get; set; }
+        public decimal? Last { get; set; }
+        public DateTimeOffset Ts { get; set; }
+    }
+    private readonly Dictionary<string, QuoteVm> _quotes = new(StringComparer.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            await LoadSummaryAsync();
-        }
-        catch (Exception ex)
-        {
-            _info = $"Load failed: {ex.Message}";
-        }
+        try { _summary = await PortfolioClient.GetSummaryAsync(); }
+        catch (Exception ex) { _info = $"Load failed: {ex.Message}"; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-
         try
         {
             await Quotes.StartAsync();
             Quotes.OnQuote += msg =>
             {
-                if (string.Equals(msg.Symbol, _watchSymbol, StringComparison.OrdinalIgnoreCase))
+                var sym = msg.Symbol.ToUpperInvariant();
+                _quotes[sym] = new QuoteVm
                 {
-                    _quote = msg;
-                    _ = InvokeAsync(StateHasChanged);
-                }
+                    Symbol = sym,
+                    Bid = msg.Bid,
+                    Ask = msg.Ask,
+                    Last = msg.Last,
+                    Ts = msg.Ts
+                };
+                _ = InvokeAsync(StateHasChanged);
             };
-            await Quotes.SubscribeAsync(_watchSymbol);
         }
         catch (Exception ex)
         {
@@ -212,73 +199,37 @@
         }
     }
 
-    private async Task LoadSummaryAsync()
-    {
-        _summary = await PortfolioClient.GetSummaryAsync();
-        StateHasChanged();
-    }
-
     private async Task DepositAsync()
     {
-        if (_depositAmount <= 0) return;
-        _busy = true;
-        _info = "";
         try
         {
-            await PortfolioClient.DepositAsync(_depositAmount, null);
-            await LoadSummaryAsync();
-            _info = $"Deposited {_depositAmount:0.##}.";
+            await PortfolioClient.DepositAsync(_deposit, null);
+            _summary = await PortfolioClient.GetSummaryAsync();
+            _deposit = 0m;
+            _info = "";
         }
-        catch (Exception ex)
-        {
-            _info = ex.Message;
-        }
-        finally
-        {
-            _busy = false;
-        }
+        catch (Exception ex) { _info = ex.Message; }
     }
 
     private async Task PlaceOrderAsync()
     {
         _busy = true;
-        _orderInfo = "";
         try
         {
-            // ensure demo cash for a smoother UX
-            if (_summary is null || _summary.Cash < 1000m)
-            {
-                await PortfolioClient.DepositAsync(1000m, null);
-                await LoadSummaryAsync();
-            }
-            if (_form.Type == OrderType.Market)
-                _form.LimitPrice = null;
-
-            var dto = new TradingClient.PlaceOrderDto(
-                null, _form.Symbol, _form.Side, _form.Type, _form.Quantity, _form.LimitPrice);
-
+            if (_form.Type == OrderType.Market) _form.LimitPrice = null;
+            var dto = new TradingClient.PlaceOrderDto(null, _form.Symbol, _form.Side, _form.Type, _form.Quantity, _form.LimitPrice);
             var id = await TradingClient.PlaceAsync(dto);
             _orderInfo = $"Order placed: {id}";
+            _summary = await PortfolioClient.GetSummaryAsync();
         }
-        catch (Exception ex)
-        {
-            _orderInfo = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            _busy = false;
-        }
+        catch (HttpRequestException ex) { _orderInfo = $"Error: {ex.Message}"; }
+        finally { _busy = false; }
     }
+
     private void OnTypeChanged()
     {
         if (_form.Type == OrderType.Market) _form.LimitPrice = null;
     }
-    private async Task SubscribeQuoteAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_watchSymbol)) return;
-        _quote = null;
-        await Quotes.SubscribeAsync(_watchSymbol);
-    }
 
-    public async ValueTask DisposeAsync() => await Quotes.DisposeAsync();
+    public async ValueTask DisposeAsync() => await Quotes.StopAsync();
 }

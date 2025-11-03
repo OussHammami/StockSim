@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using StockSim.Domain.Models;
+using StockSim.Domain.MarketFeed;
 using System.Collections.Concurrent;
 using StockSim.MarketFeed.Hubs;
 
-public sealed class PriceWorker(ConcurrentDictionary<string, Quote> prices,
+public sealed class PriceWorker(ConcurrentDictionary<string, decimal> prices,
                                 string[] symbols,
                                 IHubContext<QuoteHub> hub) : BackgroundService
 {
@@ -12,17 +12,17 @@ public sealed class PriceWorker(ConcurrentDictionary<string, Quote> prices,
     protected override async Task ExecuteAsync(CancellationToken token)
     {
         foreach (var s in symbols)
-            prices[s] = new Quote(s, 100m + (decimal)_rng.NextDouble() * 100m, 0m, DateTimeOffset.UtcNow);
+            prices[s] = (decimal)_rng.NextDouble() * 100m;
 
         while (!token.IsCancellationRequested)
         {
             foreach (var s in symbols)
             {
-                var old = prices[s];
-                var pct = ((decimal)_rng.NextDouble() - 0.5m) * 0.02m;
-                var p = Math.Max(1m, old.Price * (1m + pct));
-                var q = new Quote(s, decimal.Round(p, 2), decimal.Round(p - old.Price, 2), DateTimeOffset.UtcNow);
-                prices[s] = q;
+                var last = prices[s] = Math.Max(1, prices[s] + (decimal)(_rng.NextDouble() - 0.5) * 2m);
+                var bid = last - 0.05m;
+                var ask = last + 0.05m;
+                var q = new Quote(s, bid, ask, last, DateTimeOffset.UtcNow);
+                prices[s] = last;
                 await hub.Clients.All.SendAsync("quote", q, token);
             }
             await Task.Delay(5000, token);

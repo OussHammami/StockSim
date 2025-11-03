@@ -8,6 +8,7 @@ ENV LC_ALL=en_US.UTF-8
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
+COPY Directory.Packages.props ./
 COPY src/StockSim.Domain/*.csproj src/StockSim.Domain/
 COPY src/StockSim.Application/*.csproj src/StockSim.Application/
 COPY src/StockSim.Infrastructure/*.csproj src/StockSim.Infrastructure/

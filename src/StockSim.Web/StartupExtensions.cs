@@ -20,6 +20,7 @@ using StockSim.Web.Components.Account;
 using StockSim.Web.Health;
 using StockSim.Web.Http;
 using StockSim.Web.Hubs;
+using StockSim.Web.Options;
 using StockSim.Web.Services;
 using System.Diagnostics;
 
@@ -110,6 +111,8 @@ public static class StartupExtensions
 
     public static IServiceCollection AddUiServices(this IServiceCollection services, ConfigurationManager configuration, IWebHostEnvironment environment)
     {
+        services.Configure<MarketFeedOptions>(configuration.GetSection("MarketFeed"));
+        services.AddSingleton<QuotesHubClient>();
         services.AddMudServices(o =>
         {
             o.SnackbarConfiguration.PositionClass = MudBlazor.Defaults.Classes.Position.BottomRight;
@@ -136,11 +139,11 @@ public static class StartupExtensions
             var baseUri = new Uri($"{ctx!.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}");
             c.BaseAddress = baseUri;
         }).AddHttpMessageHandler<ForwardAuthHeadersHandler>();
-        services.AddScoped<QuotesHubClient>();
         services.AddHostedService<MarketDataStreamer>();
         services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = true);
         services.AddSingleton<IThemePrefService, ThemePrefService>();
         services.AddHttpContextAccessor();
+
 
         return services;
     }
