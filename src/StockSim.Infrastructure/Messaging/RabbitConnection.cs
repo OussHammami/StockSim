@@ -10,16 +10,18 @@ public sealed class RabbitOptions
     public string User { get; set; } = "guest";
     public string Pass { get; set; } = "guest";
     public string Queue { get; set; } = "stocksim.orders";
-    public bool Durable { get; set; } = false;
+    public bool Durable { get; set; } = true;
 }
 
 public sealed class RabbitConnection : IDisposable
 {
     public IConnection Connection { get; }
     public RabbitOptions Options { get; }
+
     public RabbitConnection(IOptions<RabbitOptions> opt)
     {
-        Options = opt.Value;
+        Options = opt.Value ?? throw new ArgumentNullException(nameof(opt));
+
         var factory = new ConnectionFactory
         {
             HostName = Options.Host,
@@ -28,9 +30,35 @@ public sealed class RabbitConnection : IDisposable
             Password = Options.Pass,
             DispatchConsumersAsync = true
         };
-        Connection = factory.CreateConnection("stocksim-web");
-        using var ch = Connection.CreateModel();
-        ch.QueueDeclare(Options.Queue, durable: Options.Durable, exclusive: false, autoDelete: false);
+
+        Connection = factory.CreateConnection("stocksim-workers");
+
+        // Ensure target queue exists.
+        using var ch = CreateChannel();
+        ch.QueueDeclare(
+            queue: Options.Queue,
+            durable: Options.Durable,
+            exclusive: false,
+            autoDelete: false,
+            arguments: null);
     }
-    public void Dispose() => Connection.Dispose();
+
+    public IModel CreateChannel()
+    {
+        var ch = Connection.CreateModel();
+        ch.ConfirmSelect(); // publisher confirms
+        return ch;
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (Connection.IsOpen) Connection.Close();
+        }
+        finally
+        {
+            Connection.Dispose();
+        }
+    }
 }

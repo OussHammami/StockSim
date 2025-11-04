@@ -1,8 +1,9 @@
-﻿using StockSim.Application.Integration;
+﻿using StockSim.Application.Abstractions.Outbox;
+using StockSim.Application.Integration;
 
 namespace StockSim.Web.IntegrationTests.Fakes;
 
-public sealed class InMemoryOutboxWriter : IOutboxWriter
+public sealed class InMemoryOutboxWriter : IOutboxWriter<IPortfolioOutboxContext>
 {
     public List<IntegrationEvent> Items { get; } = new();
     public Task WriteAsync(IEnumerable<IntegrationEvent> events, CancellationToken ct = default)

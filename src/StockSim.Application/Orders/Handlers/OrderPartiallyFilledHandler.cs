@@ -1,6 +1,6 @@
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
-using StockSim.Application.Orders;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.Orders.Events;
 using StockSim.Domain.ValueObjects;
@@ -12,13 +12,13 @@ public sealed class OrderPartiallyFilledHandler : IDomainEventHandler<OrderParti
     private readonly IOrderRepository _orders;
     private readonly IPortfolioRepository _portfolios;
     private readonly IIntegrationEventMapper _mapper;
-    private readonly IOutboxWriter _outbox;
+    private readonly IOutboxWriter<IPortfolioOutboxContext> _outbox;
 
     public OrderPartiallyFilledHandler(
         IOrderRepository orders,
         IPortfolioRepository portfolios,
         IIntegrationEventMapper mapper,
-        IOutboxWriter outbox)
+        IOutboxWriter<IPortfolioOutboxContext> outbox)
     {
         _orders = orders;
         _portfolios = portfolios;

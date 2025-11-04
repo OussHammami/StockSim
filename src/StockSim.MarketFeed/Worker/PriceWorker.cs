@@ -19,8 +19,8 @@ public sealed class PriceWorker(ConcurrentDictionary<string, decimal> prices,
             foreach (var s in symbols)
             {
                 var last = prices[s] = Math.Max(1, prices[s] + (decimal)(_rng.NextDouble() - 0.5) * 2m);
-                var bid = last - 0.05m;
-                var ask = last + 0.05m;
+                var bid = last - (decimal) _rng.NextDouble() /10;
+                var ask = last + (decimal)_rng.NextDouble() / 10;
                 var q = new Quote(s, bid, ask, last, DateTimeOffset.UtcNow);
                 prices[s] = last;
                 await hub.Clients.All.SendAsync("quote", q, token);

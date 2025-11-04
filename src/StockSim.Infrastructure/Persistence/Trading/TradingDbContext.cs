@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using StockSim.Application.Abstractions.Inbox;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Domain.Orders;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Outbox;
 
 namespace StockSim.Infrastructure.Persistence.Trading;
 
-public class TradingDbContext: DbContext
+public class TradingDbContext: DbContext, ITradingOutboxContext, ITradingInboxContext
 {
     public const string Schema = "trading";
 

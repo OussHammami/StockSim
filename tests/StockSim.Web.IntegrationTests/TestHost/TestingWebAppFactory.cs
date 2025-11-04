@@ -14,6 +14,7 @@ using StockSim.Application.Orders.Handlers;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.Orders.Events;
 using Microsoft.Extensions.Logging;
+using StockSim.Application.Abstractions.Outbox;
 
 namespace StockSim.Web.IntegrationTests.TestHost;
 
@@ -36,11 +37,11 @@ public class TestingWebAppFactory : WebApplicationFactory<Program>
             // 3) Your app services and fakes (as you already had)
             services.RemoveAll<IOrderRepository>();
             services.RemoveAll<IPortfolioRepository>();
-            services.RemoveAll<IOutboxWriter>();
+            services.RemoveAll<IOutboxWriter<IPortfolioOutboxContext>>();
             services.AddApplicationCore();
             services.AddSingleton<IOrderRepository, Fakes.InMemoryOrderRepository>();
             services.AddSingleton<IPortfolioRepository, Fakes.InMemoryPortfolioRepository>();
-            services.AddSingleton<IOutboxWriter, Fakes.InMemoryOutboxWriter>();
+            services.AddSingleton<IOutboxWriter<IPortfolioOutboxContext>, Fakes.InMemoryOutboxWriter>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<
                 IDomainEventHandler<OrderAccepted>,
                 OrderAcceptedHandler>());

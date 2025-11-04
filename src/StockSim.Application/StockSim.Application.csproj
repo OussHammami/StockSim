@@ -15,4 +15,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Orders\Handlers\" />
+  </ItemGroup>
 </Project>

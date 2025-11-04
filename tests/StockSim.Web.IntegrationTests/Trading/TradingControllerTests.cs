@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.ValueObjects;
@@ -40,8 +41,8 @@ public class TradingControllerTests : IClassFixture<TestingWebAppFactory>
         var res = await client.PostAsJsonAsync("/api/trading/orders", dto);
         res.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
 
-        var outbox = _factory.Services.GetRequiredService<IOutboxWriter>();
-        var memOutbox = (InMemoryOutboxWriter)outbox;
+        var outbox = _factory.Services.GetRequiredService<IOutboxWriter<IPortfolioOutboxContext>>();
+        var memOutbox = (InMemoryOutboxWriter) outbox;
         memOutbox.Items.Should().Contain(x => x.Type == "trading.order.accepted");
         memOutbox.Items.Should().Contain(x => x.Type == "portfolio.funds.reserved");
     }

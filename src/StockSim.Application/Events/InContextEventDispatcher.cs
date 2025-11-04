@@ -5,10 +5,10 @@ using StockSim.Domain.Primitives;
 namespace StockSim.Application.Events;
 
 /// <summary>Simple sync dispatcher using DI to locate handlers.</summary>
-public sealed class InMemoryEventDispatcher : IEventDispatcher
+public sealed class InContextEventDispatcher : IEventDispatcher
 {
     private readonly IServiceProvider _sp;
-    public InMemoryEventDispatcher(IServiceProvider sp) => _sp = sp;
+    public InContextEventDispatcher(IServiceProvider sp) => _sp = sp;
 
     public async Task DispatchAsync(IEnumerable<IDomainEvent> events, CancellationToken ct = default)
     {
