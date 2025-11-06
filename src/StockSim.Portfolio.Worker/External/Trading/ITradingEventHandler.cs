@@ -1,4 +1,4 @@
-﻿namespace StockSim.Portfolio.Worker;
+﻿namespace StockSim.Portfolio.Worker.External.Trading;
 
 /// <summary>
 /// Handle a single event from Trading. Replace this with an implementation

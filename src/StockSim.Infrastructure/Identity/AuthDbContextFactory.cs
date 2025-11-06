@@ -11,7 +11,7 @@ public sealed class AuthDbContextFactory : IDesignTimeDbContextFactory<AuthDbCon
         // 2) fallback local default for dev
         var cs =
             Environment.GetEnvironmentVariable("ConnectionStrings__AuthDb")
-            ?? "Host=localhost;Port=5432;Database=stocksim_auth;Username=stocksim;Password=stocksim;Include Error Detail=true";
+            ?? "Host=localhost;Port=5433;Database=stocksim_auth;Username=stocksim;Password=stocksim;Include Error Detail=true";
 
         var opts = new DbContextOptionsBuilder<AuthDbContext>()
             .UseNpgsql(cs, b => b.MigrationsAssembly(typeof(AuthDbContext).Assembly.FullName))

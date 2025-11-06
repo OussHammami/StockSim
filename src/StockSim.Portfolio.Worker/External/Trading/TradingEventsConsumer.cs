@@ -1,50 +1,46 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Infrastructure.Messaging;
+using System.Reflection.Metadata;
 using System.Text;
 
-namespace StockSim.Portfolio.Worker;
+namespace StockSim.Portfolio.Worker.External.Trading;
 
 /// <summary>
 /// RabbitMQ consumer that reads Trading events, ensures idempotency via EfInboxStore,
 /// and dispatches to ITradingEventHandler.
 /// </summary>
-public sealed class TradingEventConsumer : BackgroundService
+public sealed class TradingEventsConsumer : BackgroundService
 {
     private readonly RabbitConnection _rabbit;
-    private readonly IInboxStore<ITradingInboxContext> _inbox;
-    private readonly ITradingEventHandler _handler;
-    private readonly ILogger<TradingEventConsumer> _log;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<TradingEventsConsumer> _log;
 
     private IModel? _channel;
 
-    public TradingEventConsumer(
+    public TradingEventsConsumer(
+        ILogger<TradingEventsConsumer> log,
         RabbitConnection rabbit,
-        IInboxStore<ITradingInboxContext> inbox,
-        ITradingEventHandler handler,
-        ILogger<TradingEventConsumer> log)
+        IServiceScopeFactory scopeFactory)
     {
-        _rabbit = rabbit;
-        _inbox = inbox;
-        _handler = handler;
         _log = log;
+        _rabbit = rabbit;
+        _scopeFactory = scopeFactory;
     }
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        // Run the consumer loop on a dedicated Task.
-        return Task.Run(() => ConsumeLoop(stoppingToken), stoppingToken);
-    }
-
-    private async Task ConsumeLoop(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var queue = _rabbit.Options.Queue;
         _log.LogInformation("TradingEventConsumer starting. Queue={Queue}", queue);
+        using var scope = _scopeFactory.CreateScope();
+        var handler = scope.ServiceProvider.GetRequiredService<ITradingEventHandler>();
+        var inbox = scope.ServiceProvider.GetRequiredService<IInboxStore<IPortfolioInboxContext>>();
 
-        while (!ct.IsCancellationRequested)
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
@@ -63,7 +59,7 @@ public sealed class TradingEventConsumer : BackgroundService
                     var bodyJson = Encoding.UTF8.GetString(ea.Body.ToArray());
 
                     // Idempotency check
-                    if (await _inbox.SeenAsync(dedupeKey, ct))
+                    if (await inbox.SeenAsync(dedupeKey, stoppingToken))
                     {
                         _log.LogDebug("Duplicate message ignored. key={Key} type={Type}", dedupeKey, type);
                         _channel!.BasicAck(ea.DeliveryTag, multiple: false);
@@ -72,11 +68,11 @@ public sealed class TradingEventConsumer : BackgroundService
 
                     try
                     {
-                        await _handler.HandleAsync(type, bodyJson, headers, ct);
-                        await _inbox.MarkAsync(dedupeKey, ct);
+                        await handler.HandleAsync(type, bodyJson, headers, stoppingToken);
+                        await inbox.MarkAsync(dedupeKey, stoppingToken);
                         _channel!.BasicAck(ea.DeliveryTag, multiple: false);
                     }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                     {
                         // Do not ack. Let shutdown close channel and requeue in-flight deliveries.
                     }
@@ -107,19 +103,19 @@ public sealed class TradingEventConsumer : BackgroundService
                 _log.LogInformation("Consuming with tag={Tag}", consumerTag);
 
                 // Wait here until cancelled. Reconnects handled by outer loop on exception.
-                while (!ct.IsCancellationRequested)
+                while (!stoppingToken.IsCancellationRequested)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
                 }
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
             catch (Exception ex)
             {
                 _log.LogError(ex, "Consumer loop error. Reconnecting shortly.");
-                await Task.Delay(TimeSpan.FromSeconds(3), ct);
+                await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             }
             finally
             {
@@ -131,6 +127,7 @@ public sealed class TradingEventConsumer : BackgroundService
 
         _log.LogInformation("TradingEventConsumer stopped.");
     }
+
 
     private static IReadOnlyDictionary<string, string?> ExtractHeaders(IBasicProperties? props)
     {

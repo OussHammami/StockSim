@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: stocksim
       POSTGRES_PASSWORD: stocksim
       POSTGRES_DB: stocksim
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: [ "pgdata:/var/lib/postgresql/data" ]
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U stocksim -d stocksim"]
@@ -15,7 +15,13 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    ports: ["5672:5672","15672:15672"]
+    environment:
+      RABBITMQ_DEFAULT_USER: stocksim
+      RABBITMQ_DEFAULT_PASS: stocksim
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
       test: ["CMD","rabbitmq-diagnostics","-q","ping"]
       interval: 5s
@@ -95,25 +101,47 @@ services:
 
   trading-worker:
     build:
-      context: .          # repo root
+      context: .
       dockerfile: src/StockSim.Trading.Worker/Dockerfile
       args:
-        PROJECT: src/StockSim.Trading.Worker/StockSim.Trading.Worker.csproj  # adjust if different
+        PROJECT: src/StockSim.Trading.Worker/StockSim.Trading.Worker.csproj
     environment:
-      ConnectionStrings__TradingDb: Host=postgres;Database=stocksim_trading;Username=stocksim;Password=stocksim
-      ConnectionStrings__PortfolioDb: Host=postgres;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
-    depends_on: [ postgres ]
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__TradingDb: Host=postgres;Port=5432;Database=stocksim_trading;Username=stocksim;Password=stocksim
+      Rabbit__Host: rabbitmq        
+      Rabbit__Port: 5672
+      Rabbit__User: stocksim        
+      Rabbit__Pass: stocksim        
+      Rabbit__Queue: stocksim.events
+      Rabbit__Durable: "true"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    restart: unless-stopped
 
   portfolio-worker:
     build:
-      context: .
-      dockerfile: src/StockSim.Portfolio.Worker/Dockerfile
-      args:
-        PROJECT: src/StockSim.Portfolio.Worker/StockSim.Portfolio.Worker.csproj
+        context: .
+        dockerfile: src/StockSim.Portfolio.Worker/Dockerfile 
+        args:
+          PROJECT: src/StockSim.Portfolio.Worker/StockSim.Portfolio.Worker.csproj
     environment:
-      ConnectionStrings__TradingDb: Host=postgres;Database=stocksim_trading;Username=stocksim;Password=stocksim
-      ConnectionStrings__PortfolioDb: Host=postgres;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
-    depends_on: [ postgres ]
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__PortfolioDb: Host=postgres;Port=5432;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
+      Rabbit__Host: rabbitmq
+      Rabbit__Port: 5672
+      Rabbit__User: stocksim
+      Rabbit__Pass: stocksim
+      Rabbit__Queue: stocksim.events
+      Rabbit__Durable: "true"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   pgdata: {}

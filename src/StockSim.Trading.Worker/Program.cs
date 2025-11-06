@@ -2,47 +2,70 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using StockSim.Application;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
+using StockSim.Application.Integration;
+using StockSim.Application.Orders;
 using StockSim.Application.Telemetry;
-using StockSim.Infrastructure;
 using StockSim.Infrastructure.Inbox;
+using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
-using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
+using StockSim.Infrastructure.Repositories;
 
-Host.CreateDefaultBuilder(args)
-    .ConfigureServices((ctx, services) =>
-    {
-        services.AddApplicationCore();
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-        services.AddEfRepositories(
-            tradingDb: o => o.UseNpgsql(ctx.Configuration.GetConnectionString("TradingDb")),
-            portfolioDb: o => o.UseNpgsql(ctx.Configuration.GetConnectionString("PortfolioDb"))
-        );
+var builder = Host.CreateApplicationBuilder(args);
 
-        services.AddHostedService<TradingOutboxPublisher>();
-        services.AddHostedService<HealthHost>();
-        services.Configure<StockSim.Infrastructure.Messaging.RabbitOptions>(ctx.Configuration.GetSection("Rabbit"));
-        services.AddSingleton<StockSim.Infrastructure.Messaging.RabbitConnection>();
+// Load config files + env vars
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
-        services.AddScoped<IOutboxWriter<ITradingOutboxContext>, EfOutboxWriter<TradingDbContext, ITradingOutboxContext>>();
-        services.AddScoped<IInboxStore<ITradingInboxContext>, EfInboxStore<TradingDbContext, ITradingInboxContext>>();
+// Log resolved connection string once for troubleshooting
+var tradingConn = builder.Configuration.GetConnectionString("TradingDb");
+builder.Logging.AddConsole();
 
-        services.AddOpenTelemetry()
-            .ConfigureResource(r => r.AddService("stocksim.trading.worker"))
-            .WithTracing(b => b
-                .AddHttpClientInstrumentation()
-                .AddSource(Telemetry.OrdersSourceName)
-                .AddConsoleExporter())
-            .WithMetrics(b => b
-                .AddRuntimeInstrumentation()
-                .AddMeter(Telemetry.OrdersSourceName)
-                .AddPrometheusExporter());
-    })
-    .Build()
-    .Run();
+// Core application services
+builder.Services.AddSingleton<IIntegrationEventMapper, DefaultIntegrationEventMapper>();
+
+// ONLY TradingDb in this worker
+builder.Services.AddDbContext<TradingDbContext>(opt =>
+    opt.UseNpgsql(tradingConn));
+builder.Services.AddScoped<IOrderRepository, OrderRepository>();
+
+// RabbitMQ
+builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
+builder.Services.AddSingleton<RabbitConnection>();
+
+// Trading outbox publisher + health + consumer
+builder.Services.AddHostedService<TradingOutboxPublisher>();
+builder.Services.AddHostedService<HealthHost>();
+
+// Inbox/Outbox bound to TradingDbContext
+builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,
+    EfOutboxWriter<TradingDbContext, ITradingOutboxContext>>();
+
+builder.Services.AddScoped<IInboxStore<ITradingInboxContext>,
+    EfInboxStore<TradingDbContext, ITradingInboxContext>>();
+
+
+// Telemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("stocksim.trading.worker"))
+    .WithTracing(b => b
+        .AddSource(Telemetry.OrdersSourceName)
+        .AddHttpClientInstrumentation()
+        .AddConsoleExporter())
+    .WithMetrics(b => b
+        .AddMeter(Telemetry.OrdersSourceName)
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
+
+await builder.Build().RunAsync();

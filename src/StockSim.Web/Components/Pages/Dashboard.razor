@@ -51,6 +51,9 @@
                             <MudNumericField T="decimal" @bind-Value="_deposit" Min="0" Label="Deposit amount" />
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DepositAsync">Deposit</MudButton>
                         </MudStack>
+                        <MudStack Row="true" Spacing="2" Class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="PlaceOrderAsync">Place Order</MudButton>
+                        </MudStack>
                     </MudList>
                 </MudItem>
             </MudGrid>

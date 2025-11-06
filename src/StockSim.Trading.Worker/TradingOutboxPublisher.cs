@@ -1,20 +1,22 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using StockSim.Infrastructure.Messaging;
+using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
 using System.Text;
 
 public sealed class TradingOutboxPublisher : BackgroundService
 {
-    private readonly TradingDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TradingOutboxPublisher> _log;
     private readonly RabbitConnection _rabbit;
 
-    public TradingOutboxPublisher(TradingDbContext db, ILogger<TradingOutboxPublisher> log, RabbitConnection rabbit)
+    public TradingOutboxPublisher(IServiceScopeFactory scopeFactory, ILogger<TradingOutboxPublisher> log, RabbitConnection rabbit)
     {
-        _db = db;
+        _scopeFactory = scopeFactory;
         _log = log;
         _rabbit = rabbit;
     }
@@ -30,11 +32,13 @@ public sealed class TradingOutboxPublisher : BackgroundService
         {
             try
             {
-                var batch = await _db.Outbox
-                .Where(x => x.SentAt == null && x.Attempts < 10)
-                .OrderBy(x => x.CreatedAt)
-                .Take(100)
-                .ToListAsync(stoppingToken);
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<TradingDbContext>();
+                var batch = await db.Outbox
+                    .Where(x => x.SentAt == null && x.Attempts < 10)
+                    .OrderBy(x => x.CreatedAt)
+                    .Take(100)
+                    .ToListAsync(stoppingToken);
 
                 if (batch.Count == 0)
                 {
@@ -74,7 +78,7 @@ public sealed class TradingOutboxPublisher : BackgroundService
                     }
                 }
 
-                await _db.SaveChangesAsync(stoppingToken);
+                await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

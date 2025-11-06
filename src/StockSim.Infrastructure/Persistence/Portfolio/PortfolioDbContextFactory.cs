@@ -9,7 +9,7 @@ public sealed class PortfolioDbContextFactory : IDesignTimeDbContextFactory<Port
     {
         var cs =
             Environment.GetEnvironmentVariable("ConnectionStrings__PortfolioDb")
-            ?? "Host=localhost;Port=5432;Database=stocksim_portfolio;Username=stocksim;Password=stocksim;Include Error Detail=true";
+            ?? "Host=localhost;Port=5433;Database=stocksim_portfolio;Username=stocksim;Password=stocksim;Include Error Detail=true";
 
         var builder = new DbContextOptionsBuilder<PortfolioDbContext>()
             .UseNpgsql(cs, o => o.MigrationsAssembly(typeof(PortfolioDbContext).Assembly.FullName));

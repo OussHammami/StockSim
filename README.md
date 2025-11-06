@@ -59,7 +59,7 @@ Login:
 | Web          | `http://localhost:8080`  |
 | Market Feed  | `http://localhost:8081`  |
 | React Charts | `http://localhost:5173`  |
-| PostgreSQL   | `localhost:5432`         |
+| PostgreSQL   | `localhost:5433`         |
 | RabbitMQ UI  | `http://localhost:15672` |
 | Prometheus   | `http://localhost:9090`  |
 | Grafana      | `http://localhost:3000`  |
@@ -68,7 +68,7 @@ Login:
 --------------|--------------------------|
 | Web          | `http://localhost:8080` |
 | Market Feed  | `http://localhost:8081` |
-| PostgreSQL   | `localhost:5432`         |
+| PostgreSQL   | `localhost:5433`         |
 | RabbitMQ UI  | `http://localhost:15672` |
 | Prometheus   | `http://localhost:9090`  |
 | Grafana      | `http://localhost:3000`  |
@@ -97,7 +97,7 @@ cp .env.example .env
 Key variables:
 
 ```
-ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=stocksim;Username=stocksim;Password=stocksim
+ConnectionStrings__DefaultConnection=Host=postgres;Port=5433;Database=stocksim;Username=stocksim;Password=stocksim
 MarketFeed__BaseUrl=http://marketfeed:8081
 Rabbit__Host=rabbitmq
 Rabbit__Port=5672

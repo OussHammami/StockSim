@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
@@ -8,15 +9,18 @@ using System.Text;
 
 public sealed class PortfolioOutboxPublisher : BackgroundService
 {
-    private readonly PortfolioDbContext _db;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PortfolioOutboxPublisher> _log;
     private readonly RabbitConnection _rabbit;
 
-    public PortfolioOutboxPublisher(PortfolioDbContext db, ILogger<PortfolioOutboxPublisher> log, RabbitConnection rabbit)
+    public PortfolioOutboxPublisher(
+        ILogger<PortfolioOutboxPublisher> log,
+        RabbitConnection rabbit,
+        IServiceScopeFactory scopeFactory)
     {
-        _db = db;
         _log = log;
         _rabbit = rabbit;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -29,7 +33,11 @@ public sealed class PortfolioOutboxPublisher : BackgroundService
         {
             try
             {
-                var batch = await _db.Outbox
+
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
+
+                var batch = await db.Outbox
                     .Where(x => x.SentAt == null && x.Attempts < 10)
                     .OrderBy(x => x.CreatedAt)
                     .Take(100)
@@ -73,7 +81,7 @@ public sealed class PortfolioOutboxPublisher : BackgroundService
                     }
                 }
 
-                await _db.SaveChangesAsync(stoppingToken);
+                await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

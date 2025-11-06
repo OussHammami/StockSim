@@ -9,7 +9,7 @@ public sealed class TradingDbContextFactory : IDesignTimeDbContextFactory<Tradin
     {
         var cs =
             Environment.GetEnvironmentVariable("ConnectionStrings__TradingDb")
-            ?? "Host=localhost;Port=5432;Database=stocksim_trading;Username=stocksim;Password=stocksim;Include Error Detail=true";
+            ?? "Host=localhost;Port=5433;Database=stocksim_trading;Username=stocksim;Password=stocksim;Include Error Detail=true";
 
         var builder = new DbContextOptionsBuilder<TradingDbContext>()
             .UseNpgsql(cs, o => o.MigrationsAssembly(typeof(TradingDbContext).Assembly.FullName));
