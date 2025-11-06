@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StockSim.Domain.Orders;
 using StockSim.Domain.ValueObjects;
 
@@ -10,34 +9,75 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> b)
     {
-        var orderIdConv = new ValueConverter<OrderId, Guid>(v => v.Value, v => OrderId.From(v));
-        var symbolConv  = new ValueConverter<Symbol, string>(v => v.Value, v => Symbol.From(v));
-        var qtyConv     = new ValueConverter<Quantity, decimal>(v => v.Value, v => Quantity.From(v));
-        var priceConv   = new ValueConverter<Price?, decimal?>(v => v == null ? null : v.Value, v => v == null ? null : Price.From(v.Value));
-
         b.ToTable("orders");
-        b.HasKey("_id");
 
-        // Map Aggregate Id as alternate key and index
-        b.Property(o => o.Id).HasConversion(orderIdConv).HasColumnName("order_id").IsRequired();
-        b.HasIndex(o => o.Id).IsUnique();
+        // Key: OrderId <-> Guid
+        b.HasKey(x => x.Id);
 
-        b.Property<Guid>("_id").HasColumnName("id").ValueGeneratedOnAdd(); // DB primary key
-        b.HasKey("id");
+        b.Property(x => x.Id)
+            .HasConversion(
+                id => id.Value,            // OrderId -> Guid
+                g => OrderId.From(g))     // Guid -> OrderId
+            .ValueGeneratedNever()
+            .HasColumnName("id");
 
-        b.Property(o => o.UserId).HasColumnName("user_id").IsRequired();
-        b.Property(o => o.Symbol).HasConversion(symbolConv).HasColumnName("symbol").HasMaxLength(15).IsRequired();
-        b.Property(o => o.Side).HasColumnName("side").IsRequired();
-        b.Property(o => o.Type).HasColumnName("type").IsRequired();
-        b.Property(o => o.Quantity).HasConversion(qtyConv).HasColumnName("qty").HasColumnType("numeric(18,4)").IsRequired();
-        b.Property(o => o.LimitPrice).HasConversion(priceConv).HasColumnName("limit_price").HasColumnType("numeric(18,4)");
-        b.Property(o => o.State).HasColumnName("state").IsRequired();
+        // User
+        b.Property(x => x.UserId)
+            .HasColumnName("user_id");
 
-        b.Property(o => o.FilledQuantity).HasColumnName("filled_qty").HasColumnType("numeric(18,4)").IsRequired();
-        b.Property(o => o.AverageFillPrice).HasColumnName("avg_fill_price").HasColumnType("numeric(18,4)").IsRequired();
+        // Symbol VO
+        b.OwnsOne(x => x.Symbol, s =>
+        {
+            s.Property(p => p.Value)
+             .HasColumnName("symbol")
+             .HasMaxLength(15)
+             .IsRequired();
+        });
 
-        // Ignore domain events list
-        b.Ignore(o => o.DomainEvents);
-        b.Ignore(o => o.RemainingQuantity);
+        // Side, Type, State as ints (or use .HasConversion<string>() if you prefer)
+        b.Property(x => x.Side)
+            .HasColumnName("side")
+            .HasConversion<int>();
+
+        b.Property(x => x.Type)
+            .HasColumnName("type")
+            .HasConversion<int>();
+
+        b.Property(x => x.State)
+            .HasColumnName("state")
+            .HasConversion<int>();
+
+        // Quantity VO
+        b.OwnsOne(x => x.Quantity, q =>
+        {
+            q.Property(p => p.Value)
+             .HasColumnName("quantity")
+             .HasColumnType("numeric(18,4)")
+             .IsRequired();
+        });
+
+        // LimitPrice Price? nullable
+        b.OwnsOne(x => x.LimitPrice, lp =>
+        {
+            lp.Property(p => p.Value)
+              .HasColumnName("limit_price")
+              .HasColumnType("numeric(18,2)");
+        });
+
+        // FilledQuantity and AverageFillPrice as primitives on aggregate
+        b.Property(x => x.FilledQuantity)
+            .HasColumnName("filled_quantity")
+            .HasColumnType("numeric(18,4)");
+
+        b.Property(x => x.AverageFillPrice)
+            .HasColumnName("avg_fill_price")
+            .HasColumnType("numeric(18,2)");
+
+        // Timestamps if present (keep if your entity has them)
+        // b.Property(x => x.CreatedAt).HasColumnName("created_at");
+        // b.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+        // Domain events are not persisted
+        b.Ignore(x => x.DomainEvents);
     }
 }

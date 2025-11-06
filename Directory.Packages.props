@@ -1,0 +1,65 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft EF Core: keep these identical -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Abstractions" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="8.0.20" />
+
+    <!-- Provider (compatible with EFCore 8.x) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.21" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.8" />
+    
+    <!-- Dependency Injection -->
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+    
+    <!-- ASP.NET Core EF + Identity + SignalR -->
+    <PackageVersion Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.21" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.20" />
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
+    <PackageVersion Include="MudBlazor" Version="8.13.0" />
+    <PackageVersion Include="FluentValidation.AspNetCore" Version="11.3.1" />
+    
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="9.0.6" />
+    
+    <!-- BCL libs used directly -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.0" />
+
+     <!-- OpenTelemetry -->
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.13.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Zipkin" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.13.1-beta.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.13.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.10.0-beta.1" />
+    
+    <!-- RabbitMQ -->
+    <PackageVersion Include="RabbitMQ.Client" Version="6.8.1" />
+    
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageVersion Include="FluentAssertions" Version="6.12.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.20" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="3.8.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="3.8.0" />
+    <PackageVersion Include="Npgsql" Version="8.0.6" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.20" />
+  </ItemGroup>
+</Project>

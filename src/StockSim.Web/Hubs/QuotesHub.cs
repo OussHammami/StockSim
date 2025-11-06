@@ -4,7 +4,7 @@ using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Web.Hubs;
 
-[Authorize]
+[AllowAnonymous]
 public sealed class QuotesHub : Hub
 {
     

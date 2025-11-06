@@ -1,34 +1,24 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using StockSim.Application.Integration;
-using StockSim.Infrastructure.Persistence.Portfolioing;
-using StockSim.Infrastructure.Persistence.Trading;
+using StockSim.Application.Abstractions.Inbox;
 
 namespace StockSim.Infrastructure.Inbox;
 
-public sealed class EfInboxStore : IInboxStore
+/// <summary>
+/// Inbox store bound to ONE DbContext. Register per consuming context.
+/// </summary>
+public sealed class EfInboxStore<TDbContext, TMarker> : IInboxStore<TMarker>
+    where TDbContext : DbContext
 {
-    private readonly TradingDbContext _trading;
-    private readonly PortfolioDbContext _portfolio;
+    private readonly TDbContext _db;
 
-    public EfInboxStore(TradingDbContext trading, PortfolioDbContext portfolio)
-    {
-        _trading = trading;
-        _portfolio = portfolio;
-    }
+    public EfInboxStore(TDbContext db) => _db = db;
 
-    public async Task<bool> SeenAsync(string dedupeKey, CancellationToken ct = default)
-    {
-        // check both schemas
-        var seenTrading = await _trading.Inbox.AnyAsync(x => x.DedupeKey == dedupeKey, ct);
-        if (seenTrading) return true;
-        var seenPortfolio = await _portfolio.Inbox.AnyAsync(x => x.DedupeKey == dedupeKey, ct);
-        return seenPortfolio;
-    }
+    public Task<bool> SeenAsync(string dedupeKey, CancellationToken ct = default) =>
+        _db.Set<InboxMessage>().AnyAsync(x => x.DedupeKey == dedupeKey, ct);
 
     public async Task MarkAsync(string dedupeKey, CancellationToken ct = default)
     {
-        // write to portfolio by default; adjust per-worker later
-        _portfolio.Inbox.Add(new InboxMessage { DedupeKey = dedupeKey });
-        await _portfolio.SaveChangesAsync(ct);
+        _db.Set<InboxMessage>().Add(new InboxMessage { DedupeKey = dedupeKey });
+        await _db.SaveChangesAsync(ct);
     }
 }

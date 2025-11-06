@@ -1,4 +1,5 @@
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.Orders;
@@ -11,9 +12,9 @@ public sealed class OrderAcceptedHandler : IDomainEventHandler<OrderAccepted>
 {
     private readonly IPortfolioRepository _repo;
     private readonly IIntegrationEventMapper _mapper;
-    private readonly IOutboxWriter _outbox;
+    private readonly IOutboxWriter<IPortfolioOutboxContext> _outbox;
 
-    public OrderAcceptedHandler(IPortfolioRepository repo, IIntegrationEventMapper mapper, IOutboxWriter outbox)
+    public OrderAcceptedHandler(IPortfolioRepository repo, IIntegrationEventMapper mapper, IOutboxWriter<IPortfolioOutboxContext> outbox)
     {
         _repo = repo;
         _mapper = mapper;

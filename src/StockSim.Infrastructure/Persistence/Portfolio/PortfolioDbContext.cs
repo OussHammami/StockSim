@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using StockSim.Application.Abstractions.Inbox;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Domain.Portfolio;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Outbox;
 
 namespace StockSim.Infrastructure.Persistence.Portfolioing;
 
-public sealed class PortfolioDbContext : DbContext
+public sealed class PortfolioDbContext : DbContext, IPortfolioOutboxContext, IPortfolioInboxContext
 {
     public const string Schema = "portfolio";
 

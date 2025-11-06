@@ -1,27 +1,25 @@
-﻿using StockSim.Application.Integration;
-using StockSim.Application.Telemetry;
-using StockSim.Infrastructure.Persistence.Portfolioing;
-using StockSim.Infrastructure.Persistence.Trading;
+﻿using Microsoft.EntityFrameworkCore;
+using StockSim.Application.Abstractions.Outbox;
+using StockSim.Application.Integration;
 
 namespace StockSim.Infrastructure.Outbox;
 
-public sealed class EfOutboxWriter : IOutboxWriter
+/// <summary>
+/// Outbox writer bound to ONE DbContext. Register per producing context.
+/// </summary>
+public sealed class EfOutboxWriter<TDbContext, TMarker> : IOutboxWriter<TMarker>
+    where TDbContext : DbContext
 {
-    private readonly TradingDbContext _trading;
-    private readonly PortfolioDbContext _portfolio;
+    private readonly TDbContext _db;
 
-    public EfOutboxWriter(TradingDbContext trading, PortfolioDbContext portfolio)
-    {
-        _trading = trading;
-        _portfolio = portfolio;
-    }
+    public EfOutboxWriter(TDbContext db) => _db = db;
 
     public async Task WriteAsync(IEnumerable<IntegrationEvent> events, CancellationToken ct = default)
     {
         int count = 0;
         foreach (var e in events)
         {
-            var msg = new OutboxMessage
+            await _db.Set<OutboxMessage>().AddAsync(new OutboxMessage
             {
                 Type = e.Type,
                 Source = e.Source,
@@ -30,22 +28,11 @@ public sealed class EfOutboxWriter : IOutboxWriter
                 Data = e.Data,
                 SchemaVersion = e.SchemaVersion,
                 DedupeKey = e.DedupeKey
-            };
-
-            if (e.Source == "trading")
-                await _trading.Outbox.AddAsync(msg, ct);
-            else if (e.Source == "portfolio")
-                await _portfolio.Outbox.AddAsync(msg, ct);
-            else
-                throw new InvalidOperationException($"Unknown source '{e.Source}'.");
+            }, ct);
             count++;
         }
 
-        // let each context save only if it has pending entries
-        if (_trading.ChangeTracker.HasChanges())
-            await _trading.SaveChangesAsync(ct);
-        if (_portfolio.ChangeTracker.HasChanges())
-            await _portfolio.SaveChangesAsync(ct);
-        if (count > 0) Telemetry.OutboxEventsWritten.Add(count);
+        if (count > 0)
+            await _db.SaveChangesAsync(ct);
     }
 }

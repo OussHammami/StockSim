@@ -19,12 +19,13 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
                 {
                     var payload = new OrderAcceptedV1(
                         OrderId: oa.OrderId.ToString(),
-                        UserId: oa.UserId,
+                        UserId: oa.UserId.ToString(),
                         Symbol: oa.Symbol.Value,
                         Side: oa.Side.ToString(),
                         Type: oa.Type.ToString(),
                         Quantity: oa.Quantity,
-                        LimitPrice: oa.LimitPrice
+                        LimitPrice: oa.LimitPrice,
+                        OccurredAt: oa.OccurredAt
                     );
 
                     var env = new EnvelopeV1(

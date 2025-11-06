@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
@@ -30,7 +31,7 @@ public class OutboxPipelineTests
         svcs.AddSingleton<IOrderRepository>(orders);
         svcs.AddSingleton<IPortfolioRepository>(portfolios);
         svcs.AddSingleton<IDomainEventHandler<StockSim.Domain.Orders.Events.OrderAccepted>, OrderAcceptedHandler>();
-        svcs.AddSingleton<IOutboxWriter>(outbox);
+        svcs.AddSingleton<IOutboxWriter<IPortfolioOutboxContext>>(outbox);
 
         var sp = svcs.BuildServiceProvider();
         var svc = sp.GetRequiredService<IOrderService>();

@@ -31,7 +31,7 @@ public sealed class PlaceOrderDtoValidator : AbstractValidator<TradingController
         When(x => x.Type == Domain.Orders.OrderType.Market, () =>
         {
             RuleFor(x => x.LimitPrice)
-                .Must(p => p == null)
+                .Must(p => p == null || p == 0m)
                 .WithMessage("Market orders must not specify LimitPrice.");
         });
     }

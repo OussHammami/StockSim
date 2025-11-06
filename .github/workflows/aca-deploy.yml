@@ -94,7 +94,7 @@ jobs:
             --resource-group "${{ env.RESOURCE_GROUP }}" \
             --environment "${{ env.ENV_NAME }}" \
             --image "postgres:16-alpine" \
-            --target-port 5432 \
+            --target-port 5433 \
             --ingress internal \
             --env-vars POSTGRES_USER=stocksim POSTGRES_PASSWORD=stocksim POSTGRES_DB=stocksim
           echo "fqdn=$(az containerapp show -g '${{ env.RESOURCE_GROUP }}' -n pg --query 'properties.configuration.ingress.fqdn' -o tsv)" >> $GITHUB_OUTPUT

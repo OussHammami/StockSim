@@ -1,11 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
 using StockSim.Application.Orders.Handlers;
 using StockSim.Application.Portfolios;
 using StockSim.Application.Tests.Fakes;
+using StockSim.Domain.Portfolio;
 using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Application.Tests.Orders;
@@ -22,14 +24,14 @@ public class OrderServiceTests
         var orders = new InMemoryOrderRepository();
         var outbox = new InMemoryOutboxWriter();
         var portfolios = new InMemoryPortfolioRepository();
-        var p = new Domain.Portfolio.Portfolio(PortfolioId.New(), U);
+        var p = new Portfolio(PortfolioId.New(), U);
         p.Deposit(Money.From(1000m));
         portfolios.Seed(p);
 
         svcs.AddSingleton<IOrderRepository>(orders);
         svcs.AddSingleton<IPortfolioRepository>(portfolios);
         svcs.AddSingleton<IDomainEventHandler<Domain.Orders.Events.OrderAccepted>, OrderAcceptedHandler>();
-        svcs.AddSingleton<IOutboxWriter>(outbox);
+        svcs.AddSingleton<IOutboxWriter<IPortfolioOutboxContext>>(outbox);
 
         var sp = svcs.BuildServiceProvider();
         var svc = sp.GetRequiredService<IOrderService>();

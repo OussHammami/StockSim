@@ -1,4 +1,5 @@
 using StockSim.Application.Abstractions.Events;
+using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders.Commands;
 using StockSim.Domain.Orders;
@@ -12,9 +13,9 @@ public sealed class OrderService : IOrderService
     private readonly IOrderRepository _orders;
     private readonly IEventDispatcher _events;
     private readonly IIntegrationEventMapper _mapper;
-    private readonly IOutboxWriter _outbox;
+    private readonly IOutboxWriter<ITradingOutboxContext> _outbox;
 
-    public OrderService(IOrderRepository orders, IEventDispatcher events, IIntegrationEventMapper mapper, IOutboxWriter outbox)
+    public OrderService(IOrderRepository orders, IEventDispatcher events, IIntegrationEventMapper mapper, IOutboxWriter<ITradingOutboxContext> outbox)
     {
         _orders = orders;
         _events = events;
@@ -76,4 +77,6 @@ public sealed class OrderService : IOrderService
     }
 
     public Task<Order?> GetAsync(OrderId id, CancellationToken ct = default) => _orders.GetAsync(id, ct);
+
+    public Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, CancellationToken ct) => _orders.GetByUserAsync(userId, ct: ct);
 }

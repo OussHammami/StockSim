@@ -4,7 +4,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
-using StockSim.Domain.Models;
+using StockSim.Domain.MarketFeed;
 using StockSim.MarketFeed.Hubs;
 using System.Collections.Concurrent;
 
@@ -58,7 +58,7 @@ builder.Services.AddCors(o =>
 });
 
 // shared state via DI
-builder.Services.AddSingleton(new ConcurrentDictionary<string, Quote>());
+builder.Services.AddSingleton(new ConcurrentDictionary<string, decimal>());
 builder.Services.AddSingleton(new[] { "AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "TSLA", "META" });
 builder.Services.AddHostedService<PriceWorker>();
 builder.Services.AddHealthChecks();
@@ -109,15 +109,15 @@ app.Use(async (ctx, next) =>
 });
 app.UseCors(CorsPolicy);
 // list quotes
-app.MapGet("/api/quotes", (ConcurrentDictionary<string, Quote> prices, string? symbolsCsv) =>
+app.MapGet("/api/quotes", (ConcurrentDictionary<string, decimal> prices, string? symbolsCsv) =>
 {
     var all = prices.Keys.ToArray();
     IEnumerable<string> req = string.IsNullOrWhiteSpace(symbolsCsv)
         ? all
         : symbolsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-    return req.Select(s => prices.TryGetValue(s, out var q)
-        ? q : new Quote(s, 0m, 0m, DateTimeOffset.UtcNow));
+    return req.Select<string, object>(s => prices.TryGetValue(s, out var q)
+        ? q : new Quote(s, 0m, 0m, 0m, DateTimeOffset.UtcNow));
 }).RequireCors(CorsPolicy);
 
 app.MapHub<QuoteHub>("/hubs/quotes").RequireCors(CorsPolicy);

@@ -1,8 +1,8 @@
-using StockSim.Application.Integration;
+using StockSim.Application.Abstractions.Inbox;
 
 namespace StockSim.Application.Tests.Fakes;
 
-public sealed class InMemoryInboxStore : IInboxStore
+public sealed class InMemoryInboxStore : IInboxStore<ITradingInboxContext>
 {
     private readonly HashSet<string> _keys = new();
 

@@ -25,11 +25,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Application.Tests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Contracts", "src\StockSim.Contracts\StockSim.Contracts.csproj", "{31A220A6-75DF-40E3-BA16-4AF66982C151}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Trading.Worker", "StockSim.Trading.Worker\StockSim.Trading.Worker.csproj", "{676638C2-0D1E-4745-BBB2-27FE2181C36F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Trading.Worker", "src\StockSim.Trading.Worker\StockSim.Trading.Worker.csproj", "{676638C2-0D1E-4745-BBB2-27FE2181C36F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Portfolio.Worker", "StockSim.Portfolio.Worker\StockSim.Portfolio.Worker.csproj", "{8D6F7D69-5D18-4155-A983-532432FB09A2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Portfolio.Worker", "src\StockSim.Portfolio.Worker\StockSim.Portfolio.Worker.csproj", "{8D6F7D69-5D18-4155-A983-532432FB09A2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Web.IntegrationTests", "StockSim.Web.IntegrationTests\StockSim.Web.IntegrationTests.csproj", "{6083032E-B7E6-4E70-9B9C-89B7687A7FE8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StockSim.Web.IntegrationTests", "tests\StockSim.Web.IntegrationTests\StockSim.Web.IntegrationTests.csproj", "{6083032E-B7E6-4E70-9B9C-89B7687A7FE8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -14,4 +14,5 @@ public interface IOrderRepository
 
     /// <summary>For ORMs that require explicit persistence.</summary>
     Task SaveChangesAsync(CancellationToken ct = default);
+
 }

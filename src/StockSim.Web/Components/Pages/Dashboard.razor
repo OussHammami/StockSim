@@ -1,353 +1,238 @@
 ﻿@page "/dashboard"
-@rendermode InteractiveServer
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
-@implements IAsyncDisposable
-
+@rendermode InteractiveServer
 @using MudBlazor
-@using Microsoft.AspNetCore.SignalR.Client
-@using Microsoft.AspNetCore.Http.Connections
-@using StockSim.Application.Abstractions
-@using StockSim.Application.Contracts.Orders
-@using StockSim.Domain.Entities
-@using StockSim.Domain.Enums
-@using StockSim.Domain.Models 
-@using StockSim.Infrastructure.Messaging
-@using StockSim.Web.Hubs
+@using StockSim.Domain.Orders
 @using StockSim.Web.Services
-@using System.Diagnostics
-@inject IPortfolioService Portfolio
-@inject IHttpClientFactory HttpClientFactory
-@inject IConfiguration Config
-@inject LastQuotesCache Cache
-@inject IOrderPublisher OrderPublisher
-@inject AuthenticationStateProvider Auth
-@inject ISnackbar Snackbar
-@inject NavigationManager NavigationManager
-@inject IOrderQueries OrderQueries
-@inject StockSim.Web.Hubs.HubStatusService HubStatus
+@using static StockSim.Web.Services.TradingClient
+@using static StockSim.Web.Services.PortfolioClient
+@inject PortfolioClient PortfolioClient
+@inject TradingClient TradingClient
+@inject QuotesHubClient Quotes
 
 <MudSnackbarProvider />
 <MudPopoverProvider />
 <MudText Typo="Typo.h5">Portfolio Dashboard</MudText>
 
 <MudGrid Class="mt-2">
-  <!-- Left column: everything except quotes -->
-  <MudItem xxl="8" lg="8" md="12" sm="12">
-    <MudPaper Class="p-3 mb-3">
-      <MudGrid>
-        <MudItem xxl="3" lg="4" md="6" sm="12">
-          <MudText Typo="Typo.h6">Trade</MudText>
-          <MudTextField @bind-Value="_symbol" Label="Symbol" Immediate="true" />
-          <MudNumericField @bind-Value="_qty" Label="Quantity" Min="1" /> 
-          <MudSelect T="OrderType" @bind-Value="_type" Label="Type">
-            <MudSelectItem Value="OrderType.Market">Market</MudSelectItem>
-            <MudSelectItem Value="OrderType.Limit">Limit</MudSelectItem>
-          </MudSelect>         
-          <MudStack Row="true" Spacing="2" Class="mt-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Buy">Buy</MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="Sell">Sell</MudButton>
-          </MudStack>
-          @if (!string.IsNullOrEmpty(_error)) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
-        </MudItem>
+    <!-- Left column: everything except quotes -->
+    <MudItem xxl="8" lg="8" md="12" sm="12">
+        <MudPaper Class="p-3 mb-3">
+            <MudGrid>
+                <MudItem xxl="3" lg="4" md="6" sm="12">
+                    <MudText Typo="Typo.h6">Trade</MudText>
+                    <MudTextField T="string" @bind-Value="_form.Symbol" Label="Symbol" Required="true" />
+                    <MudNumericField T="decimal" @bind-Value="_form.Quantity" Label="Quantity" Required="true" Min="0.0001m" />
+                    <MudSelect T="OrderType"
+                               Label="Type"
+                               Value="_form.Type"
+                               ValueChanged="OnTypeChanged"
+                               ValueExpression="() => _form.Type">
+                        <MudSelectItem Value="@(OrderType.Market)">Market</MudSelectItem>
+                        <MudSelectItem Value="@(OrderType.Limit)">Limit</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect T="OrderSide" @bind-Value="_form.Side" Label="Side">
+                        <MudSelectItem Value="@(OrderSide.Buy)">Buy</MudSelectItem>
+                        <MudSelectItem Value="@(OrderSide.Sell)">Sell</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xxl="3" lg="4" md="6" sm="12">
+                    <MudText Typo="Typo.h6">Account</MudText>
+                    <MudList T="string" Dense="true">
+                        <MudListItem T="string">Cash: @(_summary?.Cash.ToString("0.##") ?? "-")</MudListItem>
+                        <MudListItem T="string">Reserved: @(_summary?.ReservedCash.ToString("0.##") ?? "-")</MudListItem>
 
-        <MudItem xxl="3" lg="4" md="6" sm="12">
-          <MudText Typo="Typo.h6">Account</MudText>
-          <MudList T="string" Dense="true">
-            <MudListItem T="string">Cash: @_snap.Cash.ToString("C")</MudListItem>
-            <MudListItem T="string">Market Value: @_snap.MarketValue.ToString("C")</MudListItem>
-            <MudListItem T="string">Unrealized PnL:
-              <MudText Color="@(_snap.UnrealizedPnl>=0?Color.Success:Color.Error)">
-                 @_snap.UnrealizedPnl.ToString("C")
-              </MudText>
-            </MudListItem>
-            @if (_type == OrderType.Limit)
-            {
-            <MudNumericField @bind-Value="_limit" Label="Limit price" />
-            }
-            <MudListItem T="string">Equity: @_snap.Equity.ToString("C")</MudListItem>
-          </MudList>
-          <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Reset">Reset</MudButton>
-        </MudItem>
-      </MudGrid>
-    </MudPaper>
 
-    <MudPaper Class="p-3 mb-3">
-      <MudText Typo="Typo.h6">Recent Orders</MudText>
+                        @if (_form.Type == OrderType.Limit)
+                        {
+                            <MudNumericField T="decimal?" @bind-Value="_form.LimitPrice" Label="Limit price" Min="0" />
+                        }
+                        <MudStack Row="true" Spacing="2" Class="mt-3">
+                            <MudNumericField T="decimal" @bind-Value="_deposit" Min="0" Label="Deposit amount" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DepositAsync">Deposit</MudButton>
+                        </MudStack>
+                        <MudStack Row="true" Spacing="2" Class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="PlaceOrderAsync">Place Order</MudButton>
+                        </MudStack>
+                    </MudList>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
-      <MudTable @ref="_ordersTable"
-            T="StockSim.Domain.Entities.Order"
-            ServerData="LoadOrdersAsync"
-            RowsPerPage="@_rowsPerPage"
-            RowsPerPageOptions="@_pageSizeOptions"
-            Dense="true" Bordered="true" Hover="true">
-          <NoRecordsContent>
-              <MudText Color="Color.Secondary">No orders.</MudText>
-          </NoRecordsContent>
-          <HeaderContent>
-              <MudTh>Time</MudTh>
-              <MudTh>Symbol</MudTh>
-              <MudTh align="right">Qty</MudTh>
-              <MudTh align="right">Status</MudTh>
-              <MudTh align="right">Fill</MudTh>
-              <MudTh align="right">Type</MudTh>
-              <MudTh align="right">Limit</MudTh>
-          </HeaderContent>
-          <RowTemplate>
-              <MudTd>@context.SubmittedUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm:ss")</MudTd>
-              <MudTd>@context.Symbol</MudTd>
-              <MudTd Align="Right">@context.Quantity</MudTd>
-              <MudTd Align="Right">@context.Status</MudTd>
-              <MudTd Align="Right">@context.FillPrice?.ToString("F2")</MudTd>
-              <MudTd>@context.Type</MudTd>
-              <MudTd Align="Right">@context.LimitPrice?.ToString("F2")</MudTd>
-          </RowTemplate>
-          <PagerContent>
-              <MudTablePager />
-          </PagerContent>
-      </MudTable>
-    </MudPaper>
+        <MudPaper Class="p-3 mb-3">
+            <MudText Typo="Typo.h6">Recent Orders</MudText>
 
-    <MudPaper Class="p-3 mb-3">
-      <MudText Typo="Typo.h6">Positions</MudText>
-      @if (_snap.Positions.Count == 0)
-      {
-          <MudText Color="Color.Secondary">No positions.</MudText>
-      }
-      else
-      {
-          <MudTable Items="_snap.Positions">
-              <HeaderContent>
-                  <MudTh>Symbol</MudTh>
-                  <MudTh align="right">Qty</MudTh>
-                  <MudTh align="right">Avg</MudTh>
-                  <MudTh align="right">Last</MudTh>
-                  <MudTh align="right">Unrealized</MudTh>
-              </HeaderContent>
-              <RowTemplate>
-                  @{
-                      var sym = context.Symbol;
-                      var last = _last.TryGetValue(sym, out var q) ? q.Price : 0m;
-                      var upnl = context.Quantity * (last - context.AvgPrice);
-                  }
-                  <MudTd>@sym</MudTd>
-                  <MudTd Align="Right">@context.Quantity</MudTd>
-                  <MudTd Align="Right">@context.AvgPrice.ToString("F2")</MudTd>
-                  <MudTd Align="Right">@last.ToString("F2")</MudTd>
-                  <MudTd Align="Right">
-                      <MudText Color="@(upnl >= 0 ? Color.Success : Color.Error)">@upnl.ToString("F2")</MudText>
-                  </MudTd>
-              </RowTemplate>
-          </MudTable>
-      }
-    </MudPaper>
-  </MudItem>
+            <MudTable Items="_orders ?? Array.Empty<TradingClient.PlaceOrderDto>()">
+                <NoRecordsContent>
+                    <MudText Color="Color.Secondary">No orders.</MudText>
+                </NoRecordsContent>
+                <HeaderContent>
+                    <MudTh>Time</MudTh>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh align="right">Qty</MudTh>
+                    <MudTh align="right">Status</MudTh>
+                    <MudTh align="right">Fill</MudTh>
+                    <MudTh align="right">Type</MudTh>
+                    <MudTh align="right">Limit</MudTh>
+                </HeaderContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudPaper>
 
-  <!-- Right column: quotes -->
-  <MudItem xxl="4" lg="4" md="12" sm="12">
-    <MudPaper Class="p-3 mb-3">
-      <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
-        
-        <MudChip T="string"
-         Color="@(HubStatus.Connected ? Color.Success : Color.Error)"
-         Variant="Variant.Outlined">
-            @(HubStatus.Connected ? "Live" : "Disconnected")
-        </MudChip>
+        <MudPaper Class="p-3 mb-3">
+            <MudText Typo="Typo.h6">Positions</MudText>
+            <MudDivider Class="my-2" />
+            <MudTable Items="_summary?.Positions ?? Array.Empty<PortfolioClient.PositionDto>()"
+                      Dense="true" Hover="true" Bordered="true">
+                <HeaderContent>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh class="text-right">Qty</MudTh>
+                    <MudTh class="text-right">Avg Cost</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
+                    <MudTd DataLabel="Qty" Class="text-right">@context.Quantity</MudTd>
+                    <MudTd DataLabel="Avg Cost" Class="text-right">@context.AvgCost</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText Class="pa-4" Typo="Typo.body2">No positions yet.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
 
-      @if (_quotes.Count == 0)
-      {
-          <MudProgressCircular Indeterminate="true" />
-      }
-      else
-      {
-          <MudTable Items="_quotes">
-              <HeaderContent>
-                  <MudTh>Symbol</MudTh>
-                  <MudTh>Price</MudTh>
-                  <MudTh>Δ</MudTh>
-                  <MudTh>UTC</MudTh>
-              </HeaderContent>
-              <RowTemplate>
-                  <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
-                  <MudTd DataLabel="Price">@context.Price</MudTd>
-                  <MudTd DataLabel="Δ">
-                      <MudText Color="@(context.Change > 0 ? Color.Success : context.Change < 0 ? Color.Error : Color.Default)">
-                          @((context.Change >= 0 ? "+" : "") + context.Change)
-                      </MudText>
-                  </MudTd>
-                  <MudTd DataLabel="UTC">@context.TimeUtc.ToString("HH:mm:ss")</MudTd>
-              </RowTemplate>
-          </MudTable>
-      }
-    </MudPaper>
-  </MudItem>
+    <!-- Right column: quotes -->
+    <MudItem xxl="4" lg="4" md="12" sm="12">
+        <MudPaper Class="p-3 mb-3">
+            <MudText Class="mb-2" Color="Color.Secondary">Live prices (simulated)</MudText>
+
+            <!--<MudChip T="string"
+             Color="@(HubStatus.Connected ? Color.Success : Color.Error)"
+             Variant="Variant.Outlined">
+                @(HubStatus.Connected ? "Live" : "Disconnected")
+            </MudChip>-->
+
+
+            <MudTable Items="_quotes.Values.OrderBy(q => q.Symbol)" Dense="true" Hover="true" Class="mt-2">
+                <HeaderContent>
+                    <MudTh>Symbol</MudTh>
+                    <MudTh>Bid</MudTh>
+                    <MudTh>Ask</MudTh>
+                    <MudTh>Last</MudTh>
+                    <MudTh>Spread</MudTh>
+                    <MudTh>Time</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Symbol</MudTd>
+                    <MudTd>@context.Bid.ToString("0.####")</MudTd>
+                    <MudTd>@context.Ask.ToString("0.####")</MudTd>
+                    <MudTd>@(context.Last?.ToString("0.####") ?? "-")</MudTd>
+                    <MudTd>@((context.Ask - context.Bid).ToString("0.####"))</MudTd>
+                    <MudTd>@context.Ts.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No quotes yet.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+        </MudPaper>
+    </MudItem>
 </MudGrid>
 
-@code {
-    static readonly ActivitySource Ui = new("StockSim.UI");
-    private readonly List<Quote> _quotes = new();
-    private MudTable<StockSim.Domain.Entities.Order>? _ordersTable;
-    private HubConnection? _quoteshub; 
-    private HubConnection? _ordersHub;
-    private readonly Dictionary<string, Quote> _last = new(StringComparer.OrdinalIgnoreCase);
-    private PortfolioSnapshot _snap = new();
-    private string _symbol = "AAPL";
-    private int _qty = 1;
-    private string? _error;
-    private int _rowsPerPage = 5;
-    private static readonly int[] _pageSizeOptions = { 5, 10, 25 };
-    private OrderType _type = OrderType.Market;
-    private decimal? _limit;
-    private bool _booted;
-    private Action<bool>? _onHubChanged;
-    
+@code
+{
+    private SummaryDto? _summary;
+    private PlaceOrderDto[] _orders;
+    private decimal _deposit = 0m;
+    private string _info = "";
+    private string _orderInfo = "";
+    private bool _busy;
+
+    private sealed class OrderForm
+    {
+        public string Symbol { get; set; } = "AAPL";
+        public OrderSide Side { get; set; } = OrderSide.Buy;
+        public OrderType Type { get; set; } = OrderType.Market;
+        public decimal Quantity { get; set; } = 1m;
+        public decimal? LimitPrice { get; set; }
+    }
+    private readonly OrderForm _form = new();
+
+    private sealed class QuoteVm
+    {
+        public string Symbol { get; init; } = "";
+        public decimal Bid { get; set; }
+        public decimal Ask { get; set; }
+        public decimal? Last { get; set; }
+        public DateTimeOffset Ts { get; set; }
+    }
+    private readonly Dictionary<string, QuoteVm> _quotes = new(StringComparer.OrdinalIgnoreCase);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _summary = await PortfolioClient.GetSummaryAsync(); }
+        catch (Exception ex) { _info = $"Load failed: {ex.Message}"; }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _booted) return;
-        _booted = true;
-        
-        _onHubChanged= _ => InvokeAsync(StateHasChanged);
-        HubStatus.Changed += _onHubChanged;
-        await HubStatus.EnsureAsync();
+        if (!firstRender) return;
         try
         {
-            var client = HttpClientFactory.CreateClient("MarketFeed");
-            var snap = await client.GetFromJsonAsync<Quote[]>("/api/quotes");
-            if (snap is { Length: > 0 })
+            await Quotes.StartAsync();
+            Quotes.OnQuote += msg =>
             {
-                foreach (var q in snap) _last[q.Symbol] = q;
-                _quotes.AddRange(snap.OrderBy(q => q.Symbol));
-            }
-
-            // Build the SignalR hub URL from the configured MarketFeed base URL
-            var feedBase = (client.BaseAddress?.ToString().TrimEnd('/')) 
-                           ?? "http://localhost:8081"; // dev fallback
-
-            _quoteshub = new HubConnectionBuilder()
-                .WithUrl($"{feedBase}/hubs/quotes")
-                .WithAutomaticReconnect()
-                .Build();
-
-            _quoteshub.On<Quote>("quote", async q =>
-            {
-                await InvokeAsync(async () =>
+                var sym = msg.Symbol.ToUpperInvariant();
+                _quotes[sym] = new QuoteVm
                 {
-                    var i = _quotes.FindIndex(x => string.Equals(x.Symbol, q.Symbol, StringComparison.OrdinalIgnoreCase));
-                    if (i >= 0) _quotes[i] = q; else _quotes.Add(q);
-                    Cache.Upsert(q);
-                    _quotes.Sort((a, b) => string.Compare(a.Symbol, b.Symbol, StringComparison.OrdinalIgnoreCase));
-                    _last[q.Symbol] = q;
-                    await InvokeAsync(StateHasChanged);
-                });
-            });
-
-            await _quoteshub.StartAsync();
+                    Symbol = sym,
+                    Bid = msg.Bid,
+                    Ask = msg.Ask,
+                    Last = msg.Last,
+                    Ts = msg.Ts
+                };
+                _ = InvokeAsync(StateHasChanged);
+            };
         }
-        catch
+        catch (Exception ex)
         {
-            // do not crash prerender
-            Snackbar.Add("MarketFeed unreachable. Live updates will connect when available.", Severity.Warning);
-        }
-        
-        var uid = await CurrentUserId();
-        _snap = await Portfolio.SnapshotAsync(uid, _last);
-        var inK8s = Environment.GetEnvironmentVariable("KUBERNETES_SERVICE_HOST") is not null;
-        var ordersBase = inK8s ? "http://web:8080" : NavigationManager.BaseUri.TrimEnd('/');
-
-        _ordersHub = new HubConnectionBuilder()
-            .WithUrl($"{ordersBase}/hubs/orders?userId={Uri.EscapeDataString(uid)}")
-            .WithAutomaticReconnect()
-            .Build();
-
-
-        _ordersHub.On<OrderHubMessage>("order", async msg =>
-        {
-            switch (msg.Status)
-            {
-                case "Filled":
-                    Snackbar.Add($"Order filled @ {msg.FillPrice?.ToString("F2")}", Severity.Success);
-                    break;
-                case "Rejected":
-                    Snackbar.Add($"Order rejected: {msg.Reason ?? "Unknown"}", Severity.Error);
-                    break;
-                case "Pending":
-                    Snackbar.Add("Order accepted. Pending.", Severity.Info);
-                    break;
-                default:
-                    Snackbar.Add($"Order status: {msg.Status}", Severity.Info);
-                    break;
-            }
-
-            _snap = await Portfolio.SnapshotAsync(uid, _last);
-            await (_ordersTable?.ReloadServerData() ?? Task.CompletedTask);
+            _info = $"Live quotes unavailable: {ex.Message}";
             await InvokeAsync(StateHasChanged);
-        });
-
-        await _ordersHub.StartAsync();
+        }
     }
 
-    public async ValueTask DisposeAsync()
+    private async Task DepositAsync()
     {
-        if (_onHubChanged is not null)
-            HubStatus.Changed -= _onHubChanged;
-
-        if (_quoteshub is not null) await _quoteshub.DisposeAsync();
-        if (_ordersHub is not null) await _ordersHub.DisposeAsync();
-    }
-
-    private async Task<string> CurrentUserId()
-    {
-        var st = await Auth.GetAuthenticationStateAsync();
-        return st.User.FindFirst("sub")?.Value
-            ?? st.User.FindFirst("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier")?.Value
-            ?? throw new InvalidOperationException("Not authenticated.");
-    }
-
-    private async Task Buy()
-    {
-        using var act = Ui.StartActivity("ui.buy");
-        act?.SetTag("symbol", _symbol);
-        act?.SetTag("qty", _qty);
-        _error = null;
-        var uid = await CurrentUserId();
-        if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
-
-        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = _qty, Type = _type, Tif = TimeInForce.Day, LimitPrice = _limit });
-        Snackbar.Add("Order sent", Severity.Normal);
-    }
-
-    private async Task Sell()
-    {
-        using var act = Ui.StartActivity("ui.buy");
-        act?.SetTag("symbol", _symbol);
-        act?.SetTag("qty", _qty);
-        _error = null;
-        var uid = await CurrentUserId();
-        if (!_last.TryGetValue(_symbol, out _)) { _error = "Unknown symbol."; return; }
-
-        OrderPublisher.Publish(new OrderCommand { UserId = uid, Symbol = _symbol, Quantity = -_qty, Type = _type, Tif = TimeInForce.Day, LimitPrice = _limit });
-        Snackbar.Add("Order sent", Severity.Normal);
-    }
-
-    private async Task<TableData<StockSim.Domain.Entities.Order>> LoadOrdersAsync(TableState state, CancellationToken ct)
-    {
-        var uid = await CurrentUserId();               // you already have this helper
-        var pageSize = state.PageSize;                 // 5
-        var skip = state.Page * pageSize;
-
-        var page = await OrderQueries.GetPageAsync(uid, skip, pageSize);
-        return new TableData<StockSim.Domain.Entities.Order>
+        try
         {
-            Items = page.Items,
-            TotalItems = page.Total
-        };
+            await PortfolioClient.DepositAsync(_deposit, null);
+            _summary = await PortfolioClient.GetSummaryAsync();
+            _deposit = 0m;
+            _info = "";
+        }
+        catch (Exception ex) { _info = ex.Message; }
     }
-    private async Task Reset(MouseEventArgs args)
+
+    private async Task PlaceOrderAsync()
     {
-        var uid = await CurrentUserId();
-        await Portfolio.ResetAsync(uid);
-        _snap = await Portfolio.SnapshotAsync(uid, _last);
-        await (_ordersTable?.ReloadServerData() ?? Task.CompletedTask);
-        Snackbar.Add("Portfolio reset.", Severity.Info);
-        await InvokeAsync(StateHasChanged);
+        _busy = true;
+        try
+        {
+            if (_form.Type == OrderType.Market) _form.LimitPrice = null;
+            var dto = new TradingClient.PlaceOrderDto(null, _form.Symbol, _form.Side, _form.Type, _form.Quantity, _form.LimitPrice);
+            var id = await TradingClient.PlaceAsync(dto);
+            _orderInfo = $"Order placed: {id}";
+            _summary = await PortfolioClient.GetSummaryAsync();
+        }
+        catch (HttpRequestException ex) { _orderInfo = $"Error: {ex.Message}"; }
+        finally { _busy = false; }
     }
+
+    private void OnTypeChanged()
+    {
+        if (_form.Type == OrderType.Market) _form.LimitPrice = null;
+    }
+
+    public async ValueTask DisposeAsync() => await Quotes.StopAsync();
 }

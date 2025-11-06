@@ -11,7 +11,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationCore(this IServiceCollection services)
     {
-        services.AddSingleton<IEventDispatcher, InMemoryEventDispatcher>();
+        services.AddSingleton<IEventDispatcher, NullEventDispatcher>();
         services.AddSingleton<IIntegrationEventMapper, DefaultIntegrationEventMapper>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IPortfolioService, PortfolioService>();

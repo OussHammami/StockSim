@@ -5,7 +5,8 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-
+# Copy central files first so CPM is in effect during restore
+COPY Directory.Packages.props ./
 # restore with only csproj files
 COPY src/StockSim.Domain/*.csproj src/StockSim.Domain/
 COPY src/StockSim.MarketFeed/*.csproj src/StockSim.MarketFeed/
