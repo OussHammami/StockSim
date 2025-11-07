@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
+using StockSim.Domain.Orders;
 using StockSim.Domain.ValueObjects;
 using StockSim.Web.Auth;
 using System.Security.Claims;
@@ -12,16 +13,15 @@ using System.Text;
 namespace StockSim.Web.Controllers;
 
 [ApiController]
-[Route("api/trading")]
+[Route("api/trading/orders")]
+[Authorize]
 public sealed class TradingController : ControllerBase
 {
     private readonly IOrderService _orders;
 
     public TradingController(IOrderService orders) => _orders = orders;
 
-    [HttpPost("orders")]
-    [Authorize]
-    [EnableRateLimiting("global")]
+    [HttpPost]
     public async Task<ActionResult<string>> Place([FromBody] PlaceOrderDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();
@@ -36,9 +36,7 @@ public sealed class TradingController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = id.ToString() }, id.ToString());
     }
 
-    [HttpPost("orders/{id}/cancel")]
-    [Authorize]
-    [EnableRateLimiting("global")]
+    [HttpPost("{id}/cancel")]
     public async Task<IActionResult> Cancel([FromRoute] string id, [FromBody] CancelOrderDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();
@@ -46,8 +44,7 @@ public sealed class TradingController : ControllerBase
         return NoContent();
     }
 
-    [HttpGet("orders/{id}")]
-    [Authorize]
+    [HttpGet("{id}")]
     public async Task<IActionResult> GetById([FromRoute] string id, CancellationToken ct)
     {
         var order = await _orders.GetAsync(OrderId.From(Guid.Parse(id)), ct);
@@ -68,6 +65,31 @@ public sealed class TradingController : ControllerBase
         });
     }
 
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<OrderDto>>> GetAsync([FromQuery] int skip = 0, [FromQuery] int take = 50, CancellationToken ct = default)
+    {
+        var userId = User.GetStableUserId();
+        var list = await _orders.GetByUserAsync(userId, skip, take, ct);
+        var page = list
+            .Select(Map)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToArray();
+        return Ok(page);
+    }
+    private static OrderDto Map(Order o) => new(
+        o.Id.ToString(),
+        o.Symbol.Value,
+        o.Side.ToString(),
+        o.Type.ToString(),
+        o.Quantity.Value,
+        o.State.ToString(),
+        o.FilledQuantity,
+        o.RemainingQuantity,
+        o.AverageFillPrice,
+        o.LimitPrice?.Value,
+        o.CreatedAt
+    );
+
     public sealed record PlaceOrderDto(
         Guid? UserId,
         string Symbol,
@@ -77,4 +99,17 @@ public sealed class TradingController : ControllerBase
         decimal? LimitPrice);
 
     public sealed record CancelOrderDto(Guid? UserId, string? Reason);
+    public sealed record OrderDto(
+        string Id,
+        string Symbol,
+        string Side,
+        string Type,
+        decimal Quantity,
+        string State,
+        decimal FilledQuantity,
+        decimal RemainingQuantity,
+        decimal AverageFillPrice,
+        decimal? LimitPrice,
+        DateTime CreatedAt
+    );
 }

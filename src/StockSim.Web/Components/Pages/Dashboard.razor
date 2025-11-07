@@ -62,7 +62,7 @@
         <MudPaper Class="p-3 mb-3">
             <MudText Typo="Typo.h6">Recent Orders</MudText>
 
-            <MudTable Items="_orders ?? Array.Empty<TradingClient.PlaceOrderDto>()">
+            <MudTable Items="_orders">
                 <NoRecordsContent>
                     <MudText Color="Color.Secondary">No orders.</MudText>
                 </NoRecordsContent>
@@ -75,6 +75,19 @@
                     <MudTh align="right">Type</MudTh>
                     <MudTh align="right">Limit</MudTh>
                 </HeaderContent>
+
+                <RowTemplate>
+                    <MudTd>@context.CreatedAt</MudTd>
+                    <MudTd>@context.Symbol</MudTd>
+                    <MudTd>@context.Quantity</MudTd>
+                    <MudTd>@context.State</MudTd>
+                    <MudTd>@context.FilledQuantity</MudTd>
+                    <MudTd>@context.Type</MudTd>
+                    <MudTd>@context.LimitPrice</MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudText>No orders yet.</MudText>
+                </NoRecordsContent>
                 <PagerContent>
                     <MudTablePager />
                 </PagerContent>
@@ -143,11 +156,10 @@
 @code
 {
     private SummaryDto? _summary;
-    private PlaceOrderDto[] _orders;
-    private decimal _deposit = 0m;
-    private string _info = "";
-    private string _orderInfo = "";
-    private bool _busy;
+    private TradingClient.OrderDto[] _orders = Array.Empty <TradingClient.OrderDto>();
+
+    private decimal _deposit;
+    private bool _placing;
 
     private sealed class OrderForm
     {
@@ -171,67 +183,76 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try { _summary = await PortfolioClient.GetSummaryAsync(); }
-        catch (Exception ex) { _info = $"Load failed: {ex.Message}"; }
+        await LoadSummaryAsync();
+        await ReloadOrdersAsync();
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        _summary = await PortfolioClient.GetSummaryAsync();
+        StateHasChanged();
+    }
+
+    private async Task ReloadOrdersAsync()
+    {
+        _orders = (await TradingClient.GetRecentAsync()).ToArray();
+        StateHasChanged();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        try
+        await Quotes.StartAsync();
+        Quotes.OnQuote += msg =>
         {
-            await Quotes.StartAsync();
-            Quotes.OnQuote += msg =>
+            var sym = msg.Symbol.ToUpperInvariant();
+            _quotes[sym] = new QuoteVm
             {
-                var sym = msg.Symbol.ToUpperInvariant();
-                _quotes[sym] = new QuoteVm
-                {
-                    Symbol = sym,
-                    Bid = msg.Bid,
-                    Ask = msg.Ask,
-                    Last = msg.Last,
-                    Ts = msg.Ts
-                };
-                _ = InvokeAsync(StateHasChanged);
+                Symbol = sym,
+                Bid = msg.Bid,
+                Ask = msg.Ask,
+                Last = msg.Last,
+                Ts = msg.Ts
             };
-        }
-        catch (Exception ex)
-        {
-            _info = $"Live quotes unavailable: {ex.Message}";
-            await InvokeAsync(StateHasChanged);
-        }
+            _ = InvokeAsync(StateHasChanged);
+        };
     }
 
     private async Task DepositAsync()
     {
-        try
-        {
-            await PortfolioClient.DepositAsync(_deposit, null);
-            _summary = await PortfolioClient.GetSummaryAsync();
-            _deposit = 0m;
-            _info = "";
-        }
-        catch (Exception ex) { _info = ex.Message; }
+        if (_deposit <= 0) return;
+        await PortfolioClient.DepositAsync(_deposit, null);
+        _deposit = 0;
+        await LoadSummaryAsync();
     }
 
     private async Task PlaceOrderAsync()
     {
-        _busy = true;
+        _placing = true;
         try
         {
-            if (_form.Type == OrderType.Market) _form.LimitPrice = null;
-            var dto = new TradingClient.PlaceOrderDto(null, _form.Symbol, _form.Side, _form.Type, _form.Quantity, _form.LimitPrice);
-            var id = await TradingClient.PlaceAsync(dto);
-            _orderInfo = $"Order placed: {id}";
-            _summary = await PortfolioClient.GetSummaryAsync();
+            var dto = new TradingClient.PlaceOrderDto(
+                null,
+                _form.Symbol,
+                _form.Side,
+                _form.Type,
+                _form.Quantity,
+                _form.Type == OrderType.Limit ? _form.LimitPrice : null);
+
+            await TradingClient.PlaceAsync(dto);
+            await ReloadOrdersAsync();
         }
-        catch (HttpRequestException ex) { _orderInfo = $"Error: {ex.Message}"; }
-        finally { _busy = false; }
+        finally
+        {
+            _placing = false;
+        }
     }
 
-    private void OnTypeChanged()
+    private void OnTypeChanged(OrderType t)
     {
-        if (_form.Type == OrderType.Market) _form.LimitPrice = null;
+        _form.Type = t;
+        if (t == OrderType.Market)
+            _form.LimitPrice = null;
     }
 
     public async ValueTask DisposeAsync() => await Quotes.StopAsync();

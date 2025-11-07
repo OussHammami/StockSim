@@ -9,5 +9,5 @@ public interface IOrderService
     Task<OrderId> PlaceAsync(PlaceOrder cmd, CancellationToken ct = default);
     Task CancelAsync(CancelOrder cmd, CancellationToken ct = default);
     Task<Order?> GetAsync(OrderId id, CancellationToken ct = default);
-    Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, CancellationToken ct);
+    Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, int skip = 0, int take = 50, CancellationToken ct = default);
 }

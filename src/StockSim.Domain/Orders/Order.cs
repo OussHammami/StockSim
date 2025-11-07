@@ -20,6 +20,8 @@ public sealed class Order: Entity
     public decimal RemainingQuantity => Quantity.Value - FilledQuantity;
     public decimal AverageFillPrice { get; private set; }
 
+    public DateTime CreatedAt { get; private set; }
+
     private Order() { }
 
     private Order(OrderId id, Guid userId, Symbol symbol, OrderSide side, OrderType type, Quantity qty, Price? limitPrice)
@@ -36,6 +38,7 @@ public sealed class Order: Entity
         Type = type;
         Quantity = qty;
         LimitPrice = limitPrice;
+        CreatedAt = DateTime.UtcNow;
     }
 
     public static Order CreateLimit(Guid userId, Symbol symbol, OrderSide side, Quantity quantity, Price limitPrice)
