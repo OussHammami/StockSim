@@ -83,7 +83,9 @@ services:
     env_file: [.env]
     environment:
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: ${ConnectionStrings__DefaultConnection}
+      ConnectionStrings__AuthDb: ${ConnectionStrings__AuthDb}
+      ConnectionStrings__TradingDb: ${ConnectionStrings__TradingDb}
+      ConnectionStrings__PortfolioDb: ${ConnectionStrings__PortfolioDb}
       MarketFeed__BaseUrl: http://marketfeed:8081
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
@@ -107,7 +109,7 @@ services:
         PROJECT: src/StockSim.Trading.Worker/StockSim.Trading.Worker.csproj
     environment:
       DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__TradingDb: Host=postgres;Port=5432;Database=stocksim_trading;Username=stocksim;Password=stocksim
+      ConnectionStrings__TradingDb: ${ConnectionStrings__TradingDb}
       Rabbit__Host: rabbitmq        
       Rabbit__Port: 5672
       Rabbit__User: stocksim        
@@ -129,7 +131,7 @@ services:
           PROJECT: src/StockSim.Portfolio.Worker/StockSim.Portfolio.Worker.csproj
     environment:
       DOTNET_ENVIRONMENT: Development
-      ConnectionStrings__PortfolioDb: Host=postgres;Port=5432;Database=stocksim_portfolio;Username=stocksim;Password=stocksim
+      ConnectionStrings__PortfolioDb: ${ConnectionStrings__PortfolioDb}
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
       Rabbit__User: stocksim
