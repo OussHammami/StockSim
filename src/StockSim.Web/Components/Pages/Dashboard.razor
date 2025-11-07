@@ -306,6 +306,7 @@
 
             await TradingClient.PlaceAsync(dto);
             await ReloadOrdersAsync();
+            await LoadSummaryAsync();
         }
         finally
         {

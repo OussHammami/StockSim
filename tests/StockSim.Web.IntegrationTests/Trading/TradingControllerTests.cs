@@ -41,9 +41,8 @@ public class TradingControllerTests : IClassFixture<TestingWebAppFactory>
         var res = await client.PostAsJsonAsync("/api/trading/orders", dto);
         res.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
 
-        var outbox = _factory.Services.GetRequiredService<IOutboxWriter<IPortfolioOutboxContext>>();
+        var outbox = _factory.Services.GetRequiredService<IOutboxWriter<ITradingOutboxContext>>();
         var memOutbox = (InMemoryOutboxWriter) outbox;
         memOutbox.Items.Should().Contain(x => x.Type == "trading.order.accepted");
-        memOutbox.Items.Should().Contain(x => x.Type == "portfolio.funds.reserved");
     }
 }

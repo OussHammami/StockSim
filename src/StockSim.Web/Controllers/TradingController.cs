@@ -1,14 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Commands;
 using StockSim.Domain.Orders;
 using StockSim.Domain.ValueObjects;
 using StockSim.Web.Auth;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace StockSim.Web.Controllers;
 

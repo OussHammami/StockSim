@@ -38,10 +38,12 @@ public class TestingWebAppFactory : WebApplicationFactory<Program>
             services.RemoveAll<IOrderRepository>();
             services.RemoveAll<IPortfolioRepository>();
             services.RemoveAll<IOutboxWriter<IPortfolioOutboxContext>>();
+            services.RemoveAll<IOutboxWriter<ITradingOutboxContext>>();
             services.AddApplicationCore();
             services.AddSingleton<IOrderRepository, Fakes.InMemoryOrderRepository>();
             services.AddSingleton<IPortfolioRepository, Fakes.InMemoryPortfolioRepository>();
             services.AddSingleton<IOutboxWriter<IPortfolioOutboxContext>, Fakes.InMemoryOutboxWriter>();
+            services.AddSingleton<IOutboxWriter<ITradingOutboxContext>, Fakes.InMemoryOutboxWriter>();
             services.TryAddEnumerable(ServiceDescriptor.Singleton<
                 IDomainEventHandler<OrderAccepted>,
                 OrderAcceptedHandler>());
