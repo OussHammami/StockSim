@@ -5,6 +5,7 @@ using StockSim.Domain.Orders.Events;
 using StockSim.Domain.ValueObjects;
 using Xunit;
 
+namespace StockSim.Application.Tests.Integration;
 public class IntegrationEventMapperTests
 {
     private static readonly Guid U = Guid.Parse("aaaaaaaa-bbbb-cccc-dddd-eeeeffffffff");

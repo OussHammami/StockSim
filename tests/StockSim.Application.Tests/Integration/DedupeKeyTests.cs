@@ -2,6 +2,8 @@
 using StockSim.Domain.Orders.Events;
 using StockSim.Domain.ValueObjects;
 
+
+namespace StockSim.Application.Tests.Integration;
 public class DedupeKeyTests
 {
     [Fact]

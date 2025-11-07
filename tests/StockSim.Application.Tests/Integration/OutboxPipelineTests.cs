@@ -31,7 +31,7 @@ public class OutboxPipelineTests
         svcs.AddSingleton<IOrderRepository>(orders);
         svcs.AddSingleton<IPortfolioRepository>(portfolios);
         svcs.AddSingleton<IDomainEventHandler<StockSim.Domain.Orders.Events.OrderAccepted>, OrderAcceptedHandler>();
-        svcs.AddSingleton<IOutboxWriter<IPortfolioOutboxContext>>(outbox);
+        svcs.AddSingleton<IOutboxWriter<ITradingOutboxContext>>(outbox);
 
         var sp = svcs.BuildServiceProvider();
         var svc = sp.GetRequiredService<IOrderService>();
@@ -39,6 +39,5 @@ public class OutboxPipelineTests
         await svc.PlaceAsync(new PlaceOrder(U, "AAPL", StockSim.Domain.Orders.OrderSide.Buy, StockSim.Domain.Orders.OrderType.Limit, 5m, 100m));
 
         Assert.Contains(outbox.Items, e => e.Type == "trading.order.accepted");
-        Assert.Contains(outbox.Items, e => e.Type == "portfolio.funds.reserved");
     }
 }

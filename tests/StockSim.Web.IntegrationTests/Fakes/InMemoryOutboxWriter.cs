@@ -3,7 +3,7 @@ using StockSim.Application.Integration;
 
 namespace StockSim.Web.IntegrationTests.Fakes;
 
-public sealed class InMemoryOutboxWriter : IOutboxWriter<IPortfolioOutboxContext>
+public sealed class InMemoryOutboxWriter : IOutboxWriter<IPortfolioOutboxContext>, IOutboxWriter<ITradingOutboxContext>
 {
     public List<IntegrationEvent> Items { get; } = new();
     public Task WriteAsync(IEnumerable<IntegrationEvent> events, CancellationToken ct = default)
