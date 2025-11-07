@@ -1,0 +1,52 @@
+﻿/* Highlight the currently selected symbol row in the quotes table */
+.selected-row {
+    background-color: rgba(0, 150, 255, 0.08);
+}
+
+/* Subtle emphasis for symbol chips */
+.chip-symbol {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* --- dashboard layout tweaks --- */
+.account-panel {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.account-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.account-deposit {
+    min-width: 270px;
+}
+
+.account-deposit-input {
+    min-width: 150px;
+}
+
+.orders-panel .mud-table-container {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
+.dashboard-right-stack,
+.dashboard-left-stack {
+    width: 100%;
+}
+
+.trade-panel .mud-input-control {
+    margin-bottom: 0.6rem;
+}
+
+.quotes-panel .quotes-table {
+    max-height: 360px;
+    overflow-y: auto;
+}
+.mud-theme-default {
+    --mud-palette-table-hover: #324b6669;
+}
