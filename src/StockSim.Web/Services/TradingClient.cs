@@ -12,32 +12,31 @@ public sealed class TradingClient
 
     public sealed record PlaceOrderDto(Guid? UserId, string Symbol, OrderSide Side, OrderType Type, decimal Quantity, decimal? LimitPrice);
     public sealed record CancelOrderDto(Guid? UserId, string? Reason);
+    public sealed record OrderDto(
+        string Id,
+        string Symbol,
+        string Side,
+        string Type,
+        decimal Quantity,
+        string State,
+        decimal FilledQuantity,
+        decimal RemainingQuantity,
+        decimal AverageFillPrice,
+        decimal? LimitPrice,
+        DateTime CreatedAt
+    );
 
     public async Task<string> PlaceAsync(PlaceOrderDto dto, CancellationToken ct = default)
     {
         using var res = await _http.PostAsJsonAsync("/api/trading/orders", dto, ct);
         if (res.IsSuccessStatusCode)
         {
-            // API returns Created with body = id string
             var id = await res.Content.ReadAsStringAsync(ct);
-            return id.Trim('"'); // tolerate JSON string or raw
+            return id.Trim('"'); 
         }
 
-        // Bubble up ProblemDetails when available
         var content = await res.Content.ReadAsStringAsync(ct);
-        try
-        {
-            var problem = JsonSerializer.Deserialize<ProblemDetailsPayload>(content, new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            });
-            if (problem is not null)
-                throw new TradingClientException(problem.Title ?? "Request failed", res.StatusCode, problem.Detail, problem.Extensions);
-        }
-        catch
-        {
-            // ignore JSON parse errors
-        }
+        TryThrowProblem(res.StatusCode, content, "Request failed");
         res.EnsureSuccessStatusCode();
         throw new TradingClientException("Request failed", res.StatusCode, content, null);
     }
@@ -50,6 +49,28 @@ public sealed class TradingClient
             var content = await res.Content.ReadAsStringAsync(ct);
             throw new TradingClientException("Cancel failed", res.StatusCode, content, null);
         }
+    }
+
+    public async Task<IReadOnlyList<OrderDto>> GetRecentAsync(int skip = 0, int take = 50, CancellationToken ct = default)
+    {
+        using var res = await _http.GetAsync($"/api/trading/orders?skip={skip}&take={take}", ct);
+        res.EnsureSuccessStatusCode();
+        var list = await res.Content.ReadFromJsonAsync<List<OrderDto>>(cancellationToken: ct);
+        return list ?? new List<OrderDto>();
+    }
+
+    private void TryThrowProblem(HttpStatusCode status, string content, string defaultMessage)
+    {
+        try
+        {
+            var problem = JsonSerializer.Deserialize<ProblemDetailsPayload>(content, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+            if (problem is not null)
+                throw new TradingClientException(problem.Title ?? defaultMessage, status, problem.Detail, problem.Extensions);
+        }
+        catch { /* ignore */ }
     }
 
     private sealed record ProblemDetailsPayload(string? Title, string? Detail, Dictionary<string, object>? Extensions);

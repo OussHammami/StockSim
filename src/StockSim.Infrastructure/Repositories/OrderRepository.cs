@@ -17,7 +17,7 @@ public sealed class OrderRepository : IOrderRepository
     public async Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, int skip = 0, int take = 50, CancellationToken ct = default) =>
         await _db.Orders.AsNoTracking()
             .Where(o => o.UserId == userId)
-            .OrderByDescending(o => EF.Property<Guid>(o, "Id"))
+            .OrderByDescending(o => o.CreatedAt)
             .Skip(Math.Max(0, skip)).Take(Math.Clamp(take, 1, 200))
             .ToListAsync(ct);
 

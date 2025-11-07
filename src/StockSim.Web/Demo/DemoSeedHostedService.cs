@@ -42,7 +42,7 @@ public sealed class DemoSeedHostedService(
         }
 
         // Place a few sample limit orders if none exist yet
-        var existing = await orders.GetByUserAsync(userId, ct); // implement or replace with your query
+        var existing = await orders.GetByUserAsync(userId, ct: ct);
         if (existing.Count == 0)
         {
             foreach (var s in opt.Symbols)
