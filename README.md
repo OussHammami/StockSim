@@ -34,10 +34,8 @@ Open:
 
 Login:
 
-* Admin: `admin@demo.local` / `Pass123$`
-* Trader: `trader@demo.local` / `Pass123$`
-
-> First run seeds identity and demo portfolio when `DEMO__SEED=true` (default in `.env.example`).
+* Admin: `admin@stocksim.local` / `Admin#123`
+* Trader: `trader@stocksim.local` / `Trader#123`
 
 ---
 

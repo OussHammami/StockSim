@@ -6,7 +6,9 @@ services:
       POSTGRES_PASSWORD: stocksim
       POSTGRES_DB: stocksim
     ports: ["5433:5432"]
-    volumes: [ "pgdata:/var/lib/postgresql/data" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./ops/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL","pg_isready -U stocksim -d stocksim"]
       interval: 5s
@@ -89,11 +91,6 @@ services:
       MarketFeed__BaseUrl: http://marketfeed:8081
       Rabbit__Host: rabbitmq
       Rabbit__Port: 5672
-      DEMO__SEED: ${DEMO__SEED}
-      DEMO__AdminEmail: ${DEMO__AdminEmail}
-      DEMO__AdminPassword: ${DEMO__AdminPassword}
-      DEMO__UserEmail: ${DEMO__UserEmail}
-      DEMO__UserPassword: ${DEMO__UserPassword}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
     ports: ["8080:8080"]
     depends_on:
