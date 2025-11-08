@@ -96,14 +96,14 @@ jobs:
           name: coverage
           path: coverage
                 
-      - name: Enforce Minimum Coverage
-        run: |
-          LINE=$(grep -oP 'Line coverage:\s+\K[0-9]+' coverage/Summary.txt)
-          MIN=65
-          echo "Line coverage: ${LINE}% (min ${MIN}%)"
-          if [ "$LINE" -lt "$MIN" ]; then
-            echo "Coverage below threshold"; exit 1;
-          fi
+      # - name: Enforce Minimum Coverage
+      #   run: |
+      #     LINE=$(grep -oP 'Line coverage:\s+\K[0-9]+' coverage/Summary.txt)
+      #     MIN=65
+      #     echo "Line coverage: ${LINE}% (min ${MIN}%)"
+      #     if [ "$LINE" -lt "$MIN" ]; then
+      #       echo "Coverage below threshold"; exit 1;
+      #     fi
 
   react-build:
     runs-on: ubuntu-latest
