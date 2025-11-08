@@ -11,6 +11,7 @@ using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
+using StockSim.Application.Orders.Execution;
 using StockSim.Application.Telemetry;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
@@ -47,6 +48,13 @@ builder.Services.AddSingleton<RabbitConnection>();
 // Trading outbox publisher + health + consumer
 builder.Services.AddHostedService<TradingOutboxPublisher>();
 builder.Services.AddHostedService<HealthHost>();
+
+// Trading executor
+builder.Services.AddSingleton<IFillPolicy>(new StaticFillPolicy(maxPerFill: 5));
+builder.Services.AddScoped<IMatchingEngine, SimpleMatchingEngine>();
+builder.Services.AddScoped<IOrderExecutor, OrderExecutor>();
+builder.Services.AddSingleton<IQuoteSnapshotProvider, HubQuoteSnapshotProvider>();
+builder.Services.AddHostedService<QuoteDrivenExecutionHostedService>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,

@@ -21,10 +21,18 @@ public sealed class OrderRepository : IOrderRepository
             .Skip(Math.Max(0, skip)).Take(Math.Clamp(take, 1, 200))
             .ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Order>> GetOpenBySymbolAsync(Symbol symbol, CancellationToken ct = default) =>
+    await _db.Orders.AsNoTracking()
+        .Where(o => o.Symbol.Value == symbol.Value &&
+                    (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
+                    o.Quantity.Value > o.FilledQuantity)
+        .OrderBy(o => o.CreatedAt)
+        .ToListAsync(ct);
     public async Task AddAsync(Order order, CancellationToken ct = default)
     {
         await _db.Orders.AddAsync(order, ct);
     }
 
     public Task SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
+
 }
