@@ -71,6 +71,40 @@ jobs:
           name: testresults
           path: TestResults
 
+      # NEW: Coverage report (merge + HTML)
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate Coverage Report
+        run: |
+          reportgenerator \
+            -reports:"**/TestResults/**/coverage.cobertura.xml" \
+            -targetdir:"coverage" \
+            -reporttypes:"HtmlInline;TextSummary;Cobertura"
+          echo "Coverage summary:"
+          cat coverage/Summary.txt
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat coverage/Summary.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Coverage Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage
+                
+      - name: Enforce Minimum Coverage
+        run: |
+          LINE=$(grep -oP 'Line coverage:\s+\K[0-9]+' coverage/Summary.txt)
+          MIN=65
+          echo "Line coverage: ${LINE}% (min ${MIN}%)"
+          if [ "$LINE" -lt "$MIN" ]; then
+            echo "Coverage below threshold"; exit 1;
+          fi
+
   react-build:
     runs-on: ubuntu-latest
     defaults:
