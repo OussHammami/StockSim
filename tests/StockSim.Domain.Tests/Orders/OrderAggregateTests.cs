@@ -69,4 +69,44 @@ public class OrderAggregateTests
         Assert.Equal(OrderState.Canceled, o.State);
         Assert.IsType<OrderCanceled>(o.DomainEvents.Single());
     }
+    [Fact]
+    public void Accept_Twice_Throws()
+    {
+        var o = Order.CreateMarket(U, Symbol.From("AAPL"), OrderSide.Buy, Quantity.From(1));
+        o.Accept();
+        Action act = () => o.Accept();
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Fill_FromNew_Throws()
+    {
+        var o = Order.CreateMarket(U, Symbol.From("AAPL"), OrderSide.Buy, Quantity.From(1));
+        Action act = () => o.ApplyFill(Quantity.From(1), Price.From(10));
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Fill_Exceeding_Remaining_Throws()
+    {
+        var o = Order.CreateMarket(U, Symbol.From("AAPL"), OrderSide.Buy, Quantity.From(2));
+        o.Accept();
+        o.ApplyFill(Quantity.From(1), Price.From(10));
+        Action act = () => o.ApplyFill(Quantity.From(2), Price.From(11));
+        act.Should().Throw<InvalidOperationException>();
+    }
+
+    [Fact]
+    public void Market_With_LimitPrice_Throws()
+    {
+        Action act = () => Order.CreateMarket(U, Symbol.From("AAPL"), OrderSide.Sell, Quantity.From(1) /* market */);
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public void Limit_With_Null_Price_Throws()
+    {
+        Action act = () => Order.CreateLimit(U, Symbol.From("AAPL"), OrderSide.Sell, Quantity.From(1), null!);
+        act.Should().Throw<ArgumentException>();
+    }
 }
