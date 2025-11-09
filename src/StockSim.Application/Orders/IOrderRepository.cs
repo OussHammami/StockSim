@@ -16,5 +16,9 @@ public interface IOrderRepository
 
     /// <summary>For ORMs that require explicit persistence.</summary>
     Task SaveChangesAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Order>> GetAllOpenAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Symbol>> GetSymbolsWithOpenAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<Order>> GetOpenBuysAtOrAboveAsync(Symbol symbol, decimal price, CancellationToken ct = default);
+    Task<IReadOnlyList<Order>> GetOpenSellsAtOrBelowAsync(Symbol symbol, decimal price, CancellationToken ct = default);
 
 }

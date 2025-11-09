@@ -18,6 +18,8 @@ using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
 using StockSim.Infrastructure.Persistence.Trading;
 using StockSim.Infrastructure.Repositories;
+using StockSim.Trading.Worker.Dealer;
+using StockSim.Trading.Worker.Execution;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -50,11 +52,13 @@ builder.Services.AddHostedService<TradingOutboxPublisher>();
 builder.Services.AddHostedService<HealthHost>();
 
 // Trading executor
-builder.Services.AddSingleton<IFillPolicy>(new StaticFillPolicy(maxPerFill: 5));
-builder.Services.AddScoped<IMatchingEngine, SimpleMatchingEngine>();
-builder.Services.AddScoped<IOrderExecutor, OrderExecutor>();
-builder.Services.AddSingleton<IQuoteSnapshotProvider, HubQuoteSnapshotProvider>();
-builder.Services.AddHostedService<QuoteDrivenExecutionHostedService>();
+builder.Services
+    .AddSingleton<OrderBook>()
+    .AddSingleton<ISlippageModel>(new LinearSlippageModel())
+    .AddHostedService<OrderMaintenanceHostedService>()
+    .AddHostedService<TapeDrivenExecutionHostedService>()
+    .AddSingleton<ITradePrintStream, TapeDealerHostedService>()
+    .AddScoped<TradePrintExecutor>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,

@@ -35,4 +35,35 @@ public sealed class OrderRepository : IOrderRepository
 
     public Task SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 
+    public async Task<IReadOnlyList<Order>> GetAllOpenAsync(CancellationToken ct = default) =>
+    await _db.Orders.AsNoTracking()
+        .Where(o => (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
+                    o.Quantity.Value > o.FilledQuantity)
+        .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Symbol>> GetSymbolsWithOpenAsync(CancellationToken ct = default) =>
+        await _db.Orders.AsNoTracking()
+            .Where(o => (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
+                        o.Quantity.Value > o.FilledQuantity)
+            .Select(o => o.Symbol)
+            .Distinct()
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Order>> GetOpenBuysAtOrAboveAsync(Symbol symbol, decimal price, CancellationToken ct = default) =>
+        await _db.Orders.AsNoTracking()
+            .Where(o => o.Symbol.Value == symbol.Value &&
+                        o.Side == OrderSide.Buy &&
+                        (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
+                        o.Quantity.Value > o.FilledQuantity &&
+                        (o.Type == OrderType.Market || (o.LimitPrice != null && o.LimitPrice.Value >= price)))
+            .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<Order>> GetOpenSellsAtOrBelowAsync(Symbol symbol, decimal price, CancellationToken ct = default) =>
+        await _db.Orders.AsNoTracking()
+            .Where(o => o.Symbol.Value == symbol.Value &&
+                        o.Side == OrderSide.Sell &&
+                        (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
+                        o.Quantity.Value > o.FilledQuantity &&
+                        (o.Type == OrderType.Market || (o.LimitPrice != null && o.LimitPrice.Value <= price)))
+            .ToListAsync(ct);
 }

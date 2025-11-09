@@ -78,5 +78,15 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         // Domain events are not persisted
         b.Ignore(x => x.DomainEvents);
+
+        b.Property(x => x.TimeInForce)
+         .HasColumnName("time_in_force")
+         .HasConversion<int>();
+
+        b.Property(x => x.ExpiresAt)
+         .HasColumnName("expires_at");
+
+        b.HasIndex(x => new { x.State, x.CreatedAt });
+        b.HasIndex(x => new { x.Symbol, x.State });
     }
 }
