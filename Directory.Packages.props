@@ -4,6 +4,7 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Microsoft EF Core: keep these identical -->
+    <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client.Core" Version="8.0.20" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.21" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.21" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.21" />

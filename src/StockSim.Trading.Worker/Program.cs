@@ -7,8 +7,10 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using StockSim.Application;
+using StockSim.Application.Abstractions.Events;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
+using StockSim.Application.Events;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Execution;
@@ -58,7 +60,12 @@ builder.Services
     .AddHostedService<OrderMaintenanceHostedService>()
     .AddHostedService<TapeDrivenExecutionHostedService>()
     .AddSingleton<ITradePrintStream, TapeDealerHostedService>()
-    .AddScoped<TradePrintExecutor>();
+    .AddSingleton<HubQuoteSnapshotProvider>()
+    .AddSingleton<IQuoteSnapshotProvider>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
+    .AddSingleton<IQuoteStream>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
+    .AddScoped<TradePrintExecutor>()
+    .AddScoped<IEventDispatcher, InContextEventDispatcher>()
+    .AddHostedService<HubQuoteListenerHostedService>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,
