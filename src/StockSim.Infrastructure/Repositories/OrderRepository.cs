@@ -12,7 +12,7 @@ public sealed class OrderRepository : IOrderRepository
     public OrderRepository(TradingDbContext db) => _db = db;
 
     public Task<Order?> GetAsync(OrderId id, CancellationToken ct = default) =>
-        _db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id, ct);
+        _db.Orders.FirstOrDefaultAsync(o => o.Id == id, ct);
 
     public async Task<IReadOnlyList<Order>> GetByUserAsync(Guid userId, int skip = 0, int take = 50, CancellationToken ct = default) =>
         await _db.Orders.AsNoTracking()
@@ -50,7 +50,7 @@ public sealed class OrderRepository : IOrderRepository
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Order>> GetOpenBuysAtOrAboveAsync(Symbol symbol, decimal price, CancellationToken ct = default) =>
-        await _db.Orders.AsNoTracking()
+        await _db.Orders
             .Where(o => o.Symbol.Value == symbol.Value &&
                         o.Side == OrderSide.Buy &&
                         (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
@@ -59,7 +59,7 @@ public sealed class OrderRepository : IOrderRepository
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Order>> GetOpenSellsAtOrBelowAsync(Symbol symbol, decimal price, CancellationToken ct = default) =>
-        await _db.Orders.AsNoTracking()
+        await _db.Orders
             .Where(o => o.Symbol.Value == symbol.Value &&
                         o.Side == OrderSide.Sell &&
                         (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&

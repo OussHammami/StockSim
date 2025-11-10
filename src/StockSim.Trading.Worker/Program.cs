@@ -65,7 +65,8 @@ builder.Services
     .AddSingleton<IQuoteStream>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
     .AddScoped<TradePrintExecutor>()
     .AddScoped<IEventDispatcher, InContextEventDispatcher>()
-    .AddHostedService<HubQuoteListenerHostedService>();
+    .AddHostedService<HubQuoteListenerHostedService>()
+    .AddSingleton<SymbolLocks>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,
