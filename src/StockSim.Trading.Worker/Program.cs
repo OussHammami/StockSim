@@ -53,20 +53,32 @@ builder.Services.AddSingleton<RabbitConnection>();
 builder.Services.AddHostedService<TradingOutboxPublisher>();
 builder.Services.AddHostedService<HealthHost>();
 
-// Trading executor
+// Shared singletons
 builder.Services
     .AddSingleton<OrderBook>()
     .AddSingleton<ISlippageModel>(new LinearSlippageModel())
-    .AddHostedService<OrderMaintenanceHostedService>()
-    .AddHostedService<TapeDrivenExecutionHostedService>()
-    .AddSingleton<ITradePrintStream, TapeDealerHostedService>()
     .AddSingleton<HubQuoteSnapshotProvider>()
     .AddSingleton<IQuoteSnapshotProvider>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
     .AddSingleton<IQuoteStream>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
-    .AddScoped<TradePrintExecutor>()
-    .AddScoped<IEventDispatcher, InContextEventDispatcher>()
-    .AddHostedService<HubQuoteListenerHostedService>()
     .AddSingleton<SymbolLocks>();
+
+// Hosted services (ensure proper lifetimes)
+builder.Services.AddHostedService<HubQuoteListenerHostedService>();
+
+// Register TapeDealerHostedService ONCE and reuse it as both IHostedService and ITradePrintStream
+builder.Services.AddSingleton<TapeDealerHostedService>();
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TapeDealerHostedService>());
+builder.Services.AddSingleton<ITradePrintStream>(sp => sp.GetRequiredService<TapeDealerHostedService>());
+
+// Scoped application services (resolved inside scopes by hosted services)
+builder.Services
+    .AddScoped<IEventDispatcher, InContextEventDispatcher>()
+    .AddScoped<TradePrintExecutor>();
+
+// Hosted services that create scopes for their work
+builder.Services
+    .AddHostedService<OrderMaintenanceHostedService>()
+    .AddHostedService<TapeDrivenExecutionHostedService>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,

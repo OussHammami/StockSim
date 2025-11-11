@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StockSim.Application.Orders.Execution;
 
@@ -11,17 +12,17 @@ public sealed class TapeDrivenExecutionHostedService : IHostedService
 {
     private readonly ILogger<TapeDrivenExecutionHostedService> _log;
     private readonly ITradePrintStream _tape;
-    private readonly TradePrintExecutor _executor;
+    private readonly IServiceScopeFactory _scopeFactory;
     private IDisposable? _sub;
 
     public TapeDrivenExecutionHostedService(
         ILogger<TapeDrivenExecutionHostedService> log,
         ITradePrintStream tape,
-        TradePrintExecutor executor)
+        IServiceScopeFactory scopeFactory)
     {
         _log = log;
         _tape = tape;
-        _executor = executor;
+        _scopeFactory = scopeFactory;
     }
 
     public Task StartAsync(CancellationToken ct)
@@ -30,7 +31,9 @@ public sealed class TapeDrivenExecutionHostedService : IHostedService
         {
             try
             {
-                await _executor.ExecuteAsync(p, ct);
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var exec = scope.ServiceProvider.GetRequiredService<TradePrintExecutor>();
+                await exec.ExecuteAsync(p, ct);
             }
             catch (Exception ex)
             {

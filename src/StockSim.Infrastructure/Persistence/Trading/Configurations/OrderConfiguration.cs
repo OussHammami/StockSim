@@ -87,6 +87,5 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
          .HasColumnName("expires_at");
 
         b.HasIndex(x => new { x.State, x.CreatedAt });
-        b.HasIndex(x => new { x.Symbol, x.State });
     }
 }

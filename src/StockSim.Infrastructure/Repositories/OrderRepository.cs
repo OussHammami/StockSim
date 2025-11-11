@@ -36,13 +36,13 @@ public sealed class OrderRepository : IOrderRepository
     public Task SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 
     public async Task<IReadOnlyList<Order>> GetAllOpenAsync(CancellationToken ct = default) =>
-    await _db.Orders.AsNoTracking()
+    await _db.Orders
         .Where(o => (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
                     o.Quantity.Value > o.FilledQuantity)
         .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Symbol>> GetSymbolsWithOpenAsync(CancellationToken ct = default) =>
-        await _db.Orders.AsNoTracking()
+        await _db.Orders
             .Where(o => (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
                         o.Quantity.Value > o.FilledQuantity)
             .Select(o => o.Symbol)

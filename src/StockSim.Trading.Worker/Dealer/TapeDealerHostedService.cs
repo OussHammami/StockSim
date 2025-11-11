@@ -28,7 +28,7 @@ public sealed class TapeDealerHostedService : BackgroundService, ITradePrintStre
         _quotes = quotes;
 
         _symbols = _cfg.GetValue<string>("TAPE__SYMBOLS")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                   ?? new[] { "AAPL", "MSFT", "TSLA" };
+                   ?? new[] { "AAPL", "MSFT", "AMZN", "GOOGL", "NVDA", "TSLA", "META" };
         _interval = TimeSpan.FromMilliseconds(_cfg.GetValue<int?>("TAPE__INTERVAL_MS") ?? 400);
         _meanSize = _cfg.GetValue<decimal?>("TAPE__MEAN_SIZE") ?? 25m; // average trade size
     }

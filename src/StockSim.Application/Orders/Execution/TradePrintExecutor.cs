@@ -1,7 +1,7 @@
-﻿using StockSim.Application.Abstractions.Events;
+﻿using Microsoft.Extensions.Logging;
+using StockSim.Application.Abstractions.Events;
 using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
-using StockSim.Application.Orders;
 using StockSim.Domain.Orders;
 using StockSim.Domain.ValueObjects;
 
@@ -18,6 +18,8 @@ public sealed class TradePrintExecutor
     private readonly IEventDispatcher _dispatcher;
     private readonly IIntegrationEventMapper _mapper;
     private readonly IOutboxWriter<ITradingOutboxContext> _outbox;
+    private readonly ILogger<TradePrintExecutor> _log;
+    private readonly ISlippageModel? _slippage;
     private readonly SymbolLocks _locks = new();
 
     public TradePrintExecutor(
@@ -39,7 +41,8 @@ public sealed class TradePrintExecutor
         try
         {
             var symbol = Symbol.From(print.Symbol);
-            var tapePrice = Price.From(print.Price);
+            var rawPrice = print.Price;
+            var tapePrice = Price.From(rawPrice);
             var sizeRemaining = print.Quantity;
 
             // Load all open orders for symbol once and filter in-memory.
@@ -75,8 +78,9 @@ public sealed class TradePrintExecutor
                     var qty = Math.Min(sizeRemaining, Math.Min(b.RemainingQuantity, s.RemainingQuantity));
                     if (qty <= 0) break;
 
-                    ApplyFill(b, qty, tapePrice);
-                    ApplyFill(s, qty, tapePrice);
+                    var px = Adjust(rawPrice, qty, print);
+                    ApplyFillWithLog(b, qty, px);
+                    ApplyFillWithLog(s, qty, px);
 
                     sizeRemaining -= qty;
 
@@ -95,7 +99,7 @@ public sealed class TradePrintExecutor
                         if (sizeRemaining <= 0) break;
                         var qty = Math.Min(sizeRemaining, b.RemainingQuantity);
                         if (qty <= 0) continue;
-                        ApplyFill(b, qty, tapePrice);
+                        ApplyFillWithLog(b, qty, Adjust(rawPrice, qty, print));
                         sizeRemaining -= qty;
                     }
                 }
@@ -106,7 +110,7 @@ public sealed class TradePrintExecutor
                         if (sizeRemaining <= 0) break;
                         var qty = Math.Min(sizeRemaining, s.RemainingQuantity);
                         if (qty <= 0) continue;
-                        ApplyFill(s, qty, tapePrice);
+                        ApplyFillWithLog(s, qty, Adjust(rawPrice, qty, print));
                         sizeRemaining -= qty;
                     }
                 }
@@ -131,6 +135,14 @@ public sealed class TradePrintExecutor
         
     }
 
+
+    private decimal Adjust(decimal proposedPrice, decimal quantity, TradePrint print)
+    {
+        if (_slippage is null) return proposedPrice;
+        // Build a basic snapshot using the print price on both sides
+        var snap = new QuoteSnapshot(print.Symbol, proposedPrice, proposedPrice, proposedPrice, print.Timestamp);
+        return _slippage.AdjustPrice(proposedPrice, quantity, snap);
+    }
     private static void ApplyFill(Domain.Orders.Order o, decimal qty, Price price)
     {
         // Respect simple IOC/FOK semantics inline (optional):
@@ -140,5 +152,15 @@ public sealed class TradePrintExecutor
         var fillQty = o.TimeInForce == TimeInForce.Fok ? o.RemainingQuantity : qty;
         if (fillQty > 0m)
             o.ApplyFill(Quantity.From(fillQty), price);
+    }
+
+    private void ApplyFillWithLog(Domain.Orders.Order o, decimal qty, decimal px)
+    {
+        var before = o.RemainingQuantity;
+        ApplyFill(o, qty, Price.From(px));
+        var after = o.RemainingQuantity;
+
+        _log.LogInformation("Fill applied: OrderId={OrderId} User={UserId} Side={Side} Qty={Qty} Price={Price} Remaining {Before}->{After} State={State}",
+            o.Id.Value, o.UserId, o.Side.ToString(), qty, px, before, after, o.State.ToString());
     }
 }
