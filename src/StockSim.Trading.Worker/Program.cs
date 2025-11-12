@@ -7,16 +7,21 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using StockSim.Application;
+using StockSim.Application.Abstractions.Events;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
+using StockSim.Application.Events;
 using StockSim.Application.Integration;
 using StockSim.Application.Orders;
+using StockSim.Application.Orders.Execution;
 using StockSim.Application.Telemetry;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
 using StockSim.Infrastructure.Persistence.Trading;
 using StockSim.Infrastructure.Repositories;
+using StockSim.Trading.Worker.Dealer;
+using StockSim.Trading.Worker.Execution;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
@@ -47,6 +52,33 @@ builder.Services.AddSingleton<RabbitConnection>();
 // Trading outbox publisher + health + consumer
 builder.Services.AddHostedService<TradingOutboxPublisher>();
 builder.Services.AddHostedService<HealthHost>();
+
+// Shared singletons
+builder.Services
+    .AddSingleton<OrderBook>()
+    .AddSingleton<ISlippageModel>(new LinearSlippageModel())
+    .AddSingleton<HubQuoteSnapshotProvider>()
+    .AddSingleton<IQuoteSnapshotProvider>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
+    .AddSingleton<IQuoteStream>(sp => sp.GetRequiredService<HubQuoteSnapshotProvider>())
+    .AddSingleton<SymbolLocks>();
+
+// Hosted services (ensure proper lifetimes)
+builder.Services.AddHostedService<HubQuoteListenerHostedService>();
+
+// Register TapeDealerHostedService ONCE and reuse it as both IHostedService and ITradePrintStream
+builder.Services.AddSingleton<TapeDealerHostedService>();
+builder.Services.AddSingleton<IHostedService>(sp => sp.GetRequiredService<TapeDealerHostedService>());
+builder.Services.AddSingleton<ITradePrintStream>(sp => sp.GetRequiredService<TapeDealerHostedService>());
+
+// Scoped application services (resolved inside scopes by hosted services)
+builder.Services
+    .AddScoped<IEventDispatcher, InContextEventDispatcher>()
+    .AddScoped<TradePrintExecutor>();
+
+// Hosted services that create scopes for their work
+builder.Services
+    .AddHostedService<OrderMaintenanceHostedService>()
+    .AddHostedService<TapeDrivenExecutionHostedService>();
 
 // Inbox/Outbox bound to TradingDbContext
 builder.Services.AddScoped<IOutboxWriter<ITradingOutboxContext>,

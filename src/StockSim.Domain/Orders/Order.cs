@@ -21,6 +21,8 @@ public sealed class Order: Entity
     public decimal AverageFillPrice { get; private set; }
 
     public DateTime CreatedAt { get; private set; }
+    public TimeInForce TimeInForce { get; private set; } = TimeInForce.Gtc;
+    public DateTimeOffset? ExpiresAt { get; private set; }
 
     private Order() { }
 
@@ -41,11 +43,24 @@ public sealed class Order: Entity
         CreatedAt = DateTime.UtcNow;
     }
 
-    public static Order CreateLimit(Guid userId, Symbol symbol, OrderSide side, Quantity quantity, Price limitPrice)
-        => new(OrderId.New(), userId, symbol, side, OrderType.Limit, quantity, limitPrice);
+    public static Order CreateLimit(Guid userId, Symbol symbol, OrderSide side, Quantity quantity, Price limitPrice, TimeInForce tif = TimeInForce.Gtc)
+    {
+        var o = new Order(OrderId.New(), userId, symbol, side, OrderType.Limit, quantity, limitPrice);
+        o.ConfigureTimeInForce(tif);
+        return o;
+    }
 
-    public static Order CreateMarket(Guid userId, Symbol symbol, OrderSide side, Quantity quantity)
-        => new(OrderId.New(), userId, symbol, side, OrderType.Market, quantity, null);
+    public static Order CreateMarket(Guid userId, Symbol symbol, OrderSide side, Quantity quantity, TimeInForce tif = TimeInForce.Gtc)
+    {
+        var o = new Order(OrderId.New(), userId, symbol, side, OrderType.Market, quantity, null);
+        o.ConfigureTimeInForce(tif);
+        return o;
+    }
+
+    public bool IsExpired(DateTimeOffset nowUtc) =>
+        ExpiresAt.HasValue && nowUtc >= ExpiresAt && State is OrderState.Accepted or OrderState.PartiallyFilled;
+
+    public bool RequiresAllOrNothing => TimeInForce == TimeInForce.Fok;
 
     public void Accept()
     {
@@ -103,5 +118,20 @@ public sealed class Order: Entity
     {
         if (!allowed.Contains(State))
             throw new InvalidOperationException($"State {State} not allowed here.");
+    }
+    private void ConfigureTimeInForce(TimeInForce tif)
+    {
+        TimeInForce = tif;
+        if (tif == TimeInForce.Day)
+        {
+            // naive: end of current UTC day
+            var utcNow = DateTimeOffset.UtcNow;
+            ExpiresAt = new DateTimeOffset(utcNow.Year, utcNow.Month, utcNow.Day, 23, 59, 59, TimeSpan.Zero);
+        }
+        else if (tif is TimeInForce.Ioc or TimeInForce.Fok)
+        {
+            // immediate evaluation; no expiration timestamp needed
+            ExpiresAt = null;
+        }
     }
 }
