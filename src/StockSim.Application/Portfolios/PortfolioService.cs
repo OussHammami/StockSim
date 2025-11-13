@@ -25,4 +25,10 @@ public sealed class PortfolioService : IPortfolioService
         p.Deposit(amount);
         await _repo.SaveChangesAsync(ct);
     }
+
+    public async Task<IReadOnlyList<Position>> GetPositionsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var p = await GetOrCreateAsync(userId, ct);
+        return p.Positions.OrderBy(ps => ps.Symbol).ToList();
+    }
 }

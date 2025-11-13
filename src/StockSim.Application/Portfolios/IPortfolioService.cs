@@ -7,4 +7,5 @@ public interface IPortfolioService
 {
     Task<Portfolio> GetOrCreateAsync(Guid userId, CancellationToken ct = default);
     Task DepositAsync(Guid userId, Money amount, CancellationToken ct = default);
+    Task<IReadOnlyList<Position>> GetPositionsAsync(Guid userId, CancellationToken ct = default);
 }
