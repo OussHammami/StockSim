@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using StockSim.Web.Options;
+using StockSim.Application.Options;
 
 namespace StockSim.Web.Services;
 

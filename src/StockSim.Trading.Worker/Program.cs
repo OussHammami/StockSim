@@ -12,6 +12,7 @@ using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Events;
 using StockSim.Application.Integration;
+using StockSim.Application.Options;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Execution;
 using StockSim.Application.Telemetry;
@@ -48,6 +49,9 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 // RabbitMQ
 builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
 builder.Services.AddSingleton<RabbitConnection>();
+
+//MarketFeed
+builder.Services.Configure<MarketFeedOptions>(builder.Configuration.GetSection("MarketFeed"));
 
 // Trading outbox publisher + health + consumer
 builder.Services.AddHostedService<TradingOutboxPublisher>();

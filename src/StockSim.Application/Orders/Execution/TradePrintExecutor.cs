@@ -26,12 +26,16 @@ public sealed class TradePrintExecutor
         IOrderRepository orders,
         IEventDispatcher dispatcher,
         IIntegrationEventMapper mapper,
-        IOutboxWriter<ITradingOutboxContext> outbox)
+        IOutboxWriter<ITradingOutboxContext> outbox,
+        ILogger<TradePrintExecutor> log,
+        ISlippageModel? slippage = null)
     {
         _orders = orders;
         _dispatcher = dispatcher;
         _mapper = mapper;
         _outbox = outbox;
+        _log = log;
+        _slippage = slippage;
     }
 
     public async Task ExecuteAsync(TradePrint print, CancellationToken ct = default)
@@ -132,9 +136,7 @@ public sealed class TradePrintExecutor
         {
             gate.Release();
         }
-        
     }
-
 
     private decimal Adjust(decimal proposedPrice, decimal quantity, TradePrint print)
     {
@@ -143,6 +145,7 @@ public sealed class TradePrintExecutor
         var snap = new QuoteSnapshot(print.Symbol, proposedPrice, proposedPrice, proposedPrice, print.Timestamp);
         return _slippage.AdjustPrice(proposedPrice, quantity, snap);
     }
+
     private static void ApplyFill(Domain.Orders.Order o, decimal qty, Price price)
     {
         // Respect simple IOC/FOK semantics inline (optional):
@@ -160,7 +163,8 @@ public sealed class TradePrintExecutor
         ApplyFill(o, qty, Price.From(px));
         var after = o.RemainingQuantity;
 
-        _log.LogInformation("Fill applied: OrderId={OrderId} User={UserId} Side={Side} Qty={Qty} Price={Price} Remaining {Before}->{After} State={State}",
+        _log.LogInformation(
+            "Fill applied: OrderId={OrderId} User={UserId} Side={Side} Qty={Qty} Price={Price} Remaining {Before}->{After} State={State}",
             o.Id.Value, o.UserId, o.Side.ToString(), qty, px, before, after, o.State.ToString());
     }
 }
