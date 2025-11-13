@@ -1,6 +1,8 @@
+using StockSim.Application.Orders;
 using StockSim.Contracts.Common;
 using StockSim.Contracts.Portfolio;
-using StockSim.Contracts.Trading;
+using StockSim.Contracts.Trading.V1;
+using StockSim.Contracts.Trading.V2;
 using StockSim.Domain.Orders.Events;
 using StockSim.Domain.Portfolio.Events;
 using StockSim.Domain.Primitives;
@@ -64,6 +66,29 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
                         yield return IntegrationEvent.Create(
                             type: env.Type, source: env.Source, subject: env.Subject,
                             data: payload, occurredAt: env.OccurredAt, dedupeKey: env.DedupeKey);
+
+                        var payloadV2 = new OrderPartiallyFilledV2(
+                            OrderId: opf.OrderId.ToString(),
+                            UserId: opf.UserId.ToString(),
+                            Symbol: opf.Symbol.Value,
+                            Side: opf.Side.ToString(),
+                            FillQuantity: opf.FillQuantity,
+                            FillPrice: opf.FillPrice,
+                            CumFilledQuantity: opf.CumFilledQuantity,
+                            OccurredAt: opf.OccurredAt);
+
+                        var envV2 = new EnvelopeV1(
+                            Id: Guid.NewGuid().ToString("N"),
+                            Type: "trading.order.partiallyFilled.v2",
+                            Source: "trading",
+                            Subject: opf.OrderId.ToString(),
+                            OccurredAt: opf.OccurredAt,
+                            SchemaVersion: "2",
+                            DedupeKey: $"trading|order.partiallyFilled.v2|{opf.OrderId}|{opf.CumFilledQuantity}");
+
+                        yield return IntegrationEvent.Create(
+                            type: envV2.Type, source: envV2.Source, subject: envV2.Subject,
+                            data: payloadV2, occurredAt: envV2.OccurredAt, dedupeKey: envV2.DedupeKey);
                         break;
                     }
 
@@ -86,6 +111,28 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
                         yield return IntegrationEvent.Create(
                             type: env.Type, source: env.Source, subject: env.Subject,
                             data: payload, occurredAt: env.OccurredAt, dedupeKey: env.DedupeKey);
+
+                        var payloadV2 = new OrderFilledV2(
+                            OrderId: of.OrderId.ToString(),
+                            UserId: of.UserId.ToString(),
+                            Symbol: of.Symbol.Value,
+                            Side: of.Side.ToString(),
+                            TotalFilledQuantity: of.TotalFilledQuantity,
+                            AverageFillPrice: of.AverageFillPrice,
+                            OccurredAt: of.OccurredAt);
+
+                        var envV2 = new EnvelopeV1(
+                            Id: Guid.NewGuid().ToString("N"),
+                            Type: "trading.order.filled.v2",
+                            Source: "trading",
+                            Subject: of.OrderId.ToString(),
+                            OccurredAt: of.OccurredAt,
+                            SchemaVersion: "2",
+                            DedupeKey: $"trading|order.filled.v2|{of.OrderId}");
+
+                        yield return IntegrationEvent.Create(
+                            type: envV2.Type, source: envV2.Source, subject: envV2.Subject,
+                            data: payloadV2, occurredAt: envV2.OccurredAt, dedupeKey: envV2.DedupeKey);
                         break;
                     }
 

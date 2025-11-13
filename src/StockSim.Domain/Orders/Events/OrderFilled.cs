@@ -6,14 +6,21 @@ namespace StockSim.Domain.Orders.Events;
 public sealed class OrderFilled : IDomainEvent
 {
     public OrderId OrderId { get; }
+    public Guid UserId { get; }
+    public Symbol Symbol { get; }
+    public OrderSide Side { get; }
     public decimal TotalFilledQuantity { get; }
     public decimal AverageFillPrice { get; }
-    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset OccurredAt { get; }
 
-    public OrderFilled(OrderId orderId, decimal totalQty, decimal avgPrice)
+    public OrderFilled(Guid userId, OrderId orderId, Symbol symbol, OrderSide side, decimal totalQty, decimal avgPrice, DateTimeOffset? occurredAt = null)
     {
         OrderId = orderId;
+        UserId = userId;
+        Symbol = symbol;
+        Side = side;
         TotalFilledQuantity = totalQty;
         AverageFillPrice = avgPrice;
+        OccurredAt = occurredAt ?? DateTimeOffset.UtcNow;
     }
 }

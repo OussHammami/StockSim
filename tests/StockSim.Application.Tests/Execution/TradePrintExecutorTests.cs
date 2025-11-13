@@ -26,7 +26,7 @@ public class TradePrintExecutorTests
 
         repo.GetOpenBySymbolAsync(Symbol.From("META"), default).Returns(new List<Order> { o1, o2, o3 });
 
-        var exec = new TradePrintExecutor(repo, dispatcher, mapper, outbox);
+        var exec = new TradePrintExecutor(repo, dispatcher, mapper, outbox, null);
         var print = new TradePrint("META", 100m, 25m, TradeAggressor.Unknown, DateTimeOffset.UtcNow);
 
         // Act

@@ -87,12 +87,12 @@ public sealed class Order: Entity
         if (RemainingQuantity == 0m)
         {
             State = OrderState.Filled;
-            Raise(new OrderFilled(Id, FilledQuantity, AverageFillPrice));
+            Raise(new OrderFilled(UserId, Id, Symbol, Side, FilledQuantity, AverageFillPrice));
         }
         else
         {
             State = OrderState.PartiallyFilled;
-            Raise(new OrderPartiallyFilled(Id, fillQty.Value, fillPrice.Value, FilledQuantity));
+            Raise(new OrderPartiallyFilled(UserId, Id, Symbol, Side, fillQty.Value, fillPrice.Value, FilledQuantity));
         }
     }
 

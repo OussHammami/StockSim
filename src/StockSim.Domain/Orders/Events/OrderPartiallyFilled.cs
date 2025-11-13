@@ -5,17 +5,25 @@ namespace StockSim.Domain.Orders.Events;
 
 public sealed class OrderPartiallyFilled : IDomainEvent
 {
+
     public OrderId OrderId { get; }
+    public Guid UserId { get; }
+    public Symbol Symbol { get; }
+    public OrderSide Side { get; }
     public decimal FillQuantity { get; }
     public decimal FillPrice { get; }
     public decimal CumFilledQuantity { get; }
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
 
-    public OrderPartiallyFilled(OrderId orderId, decimal fillQty, decimal fillPrice, decimal cumFilled)
+    public OrderPartiallyFilled(Guid userId, OrderId orderId, Symbol symbol, OrderSide side, decimal fillQty, decimal fillPrice, decimal cumFilled, DateTimeOffset? occurredAt = null)
     {
+        UserId = userId;
         OrderId = orderId;
+        Symbol = symbol;
+        Side = side;
         FillQuantity = fillQty;
         FillPrice = fillPrice;
         CumFilledQuantity = cumFilled;
+        OccurredAt = occurredAt ?? DateTimeOffset.UtcNow;
     }
 }

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using StockSim.Application.Options;
 using StockSim.Application.Orders.Execution;
 
 namespace StockSim.Trading.Worker.Execution;
@@ -13,23 +15,28 @@ public sealed class HubQuoteListenerHostedService : BackgroundService
     private readonly ILogger<HubQuoteListenerHostedService> _log;
     private readonly IConfiguration _cfg;
     private readonly HubQuoteSnapshotProvider _provider;
+    private readonly IOptions<MarketFeedOptions> _feed;
     private HubConnection? _conn;
 
     public HubQuoteListenerHostedService(
         ILogger<HubQuoteListenerHostedService> log,
         IConfiguration cfg,
-        HubQuoteSnapshotProvider provider)
+        HubQuoteSnapshotProvider provider,
+        IOptions<MarketFeedOptions> feed)
     {
         _log = log;
         _cfg = cfg;
         _provider = provider;
+        _feed = feed;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var explicitUrl = _cfg.GetValue<string>("QUOTES__HUB_URL");
-        var baseUrl = _cfg.GetValue<string>("MarketFeed__BaseUrl"); // e.g., http://marketfeed:8081
-        var hubUrl = explicitUrl ?? (string.IsNullOrWhiteSpace(baseUrl) ? null : $"{baseUrl.TrimEnd('/')}/hubs/quotes");
+        var optHubUrl = _feed.Value.HubUrl;
+        var hubUrl = !string.IsNullOrWhiteSpace(explicitUrl)
+            ? explicitUrl
+            : (!string.IsNullOrWhiteSpace(optHubUrl) ? optHubUrl : "http://marketfeed:8081/hubs/quotes");
 
         if (string.IsNullOrWhiteSpace(hubUrl))
         {

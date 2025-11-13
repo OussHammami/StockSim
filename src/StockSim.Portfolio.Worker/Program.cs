@@ -49,7 +49,7 @@ builder.Services.AddSingleton<RabbitConnection>();
 // Portfolio outbox publisher + health + consumer
 builder.Services.AddHostedService<PortfolioOutboxPublisher>();
 builder.Services.AddHostedService<HealthHost>();
-builder.Services.AddHostedService<TradingEventsConsumer>(); // or TradingEventsConsumer if you renamed
+builder.Services.AddHostedService<TradingEventsConsumer>();
 
 // Inbox/Outbox bound to PortfolioDbContext
 builder.Services.AddScoped<IOutboxWriter<IPortfolioOutboxContext>,
@@ -59,7 +59,13 @@ builder.Services.AddScoped<IInboxStore<IPortfolioInboxContext>,
     EfInboxStore<PortfolioDbContext, IPortfolioInboxContext>>();
 
 // Trading events handler into portfolio
-builder.Services.AddScoped<ITradingEventHandler, TradingEventsHandler>(); // or TradingEventsHandler if renamed
+builder.Services.AddScoped<ITradingEventHandler, TradingEventsHandler>(); 
+
+builder.Services.AddHttpClient<IMarketPriceProvider, HttpMarketPriceProvider>(client =>
+{
+    var baseUrl = builder.Configuration.GetValue<string>("MarketFeed:BaseUrl") ?? "http://marketfeed:8081";
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 // Telemetry
 builder.Services.AddOpenTelemetry()

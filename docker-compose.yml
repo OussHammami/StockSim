@@ -113,6 +113,7 @@ services:
       Rabbit__Pass: stocksim        
       Rabbit__Queue: stocksim.events
       Rabbit__Durable: "true"
+      MarketFeed__BaseUrl: http://marketfeed:8081
     depends_on:
       rabbitmq:
         condition: service_healthy

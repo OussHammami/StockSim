@@ -1,7 +1,7 @@
 ﻿using MudBlazor.Services;
 using StockSim.Application.MarketData.Feed;
+using StockSim.Application.Options;
 using StockSim.Web.Http;
-using StockSim.Web.Options;
 using StockSim.Web.Services;
 
 namespace StockSim.Web.Setup;
