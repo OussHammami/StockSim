@@ -7,7 +7,7 @@ using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Application.Orders.Handlers;
 
-public sealed class OrderPartiallyFilledHandler : IDomainEventHandler<OrderPartiallyFilled>
+public sealed class OrderPartiallyFilledHandler : IDomainEventHandler<OrderFillApplied>
 {
     private readonly IOrderRepository _orders;
     private readonly IPortfolioRepository _portfolios;
@@ -26,7 +26,7 @@ public sealed class OrderPartiallyFilledHandler : IDomainEventHandler<OrderParti
         _outbox = outbox;
     }
 
-    public async Task HandleAsync(OrderPartiallyFilled e, CancellationToken ct = default)
+    public async Task HandleAsync(OrderFillApplied e, CancellationToken ct = default)
     {
         // Need side, symbol, user → load order
         var order = await _orders.GetAsync(e.OrderId, ct).ConfigureAwait(false);

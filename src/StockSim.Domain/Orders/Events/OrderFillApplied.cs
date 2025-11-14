@@ -3,7 +3,7 @@ using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Domain.Orders.Events;
 
-public sealed class OrderPartiallyFilled : IDomainEvent
+public sealed class OrderFillApplied : IDomainEvent
 {
 
     public OrderId OrderId { get; }
@@ -15,7 +15,7 @@ public sealed class OrderPartiallyFilled : IDomainEvent
     public decimal CumFilledQuantity { get; }
     public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
 
-    public OrderPartiallyFilled(Guid userId, OrderId orderId, Symbol symbol, OrderSide side, decimal fillQty, decimal fillPrice, decimal cumFilled, DateTimeOffset? occurredAt = null)
+    public OrderFillApplied(Guid userId, OrderId orderId, Symbol symbol, OrderSide side, decimal fillQty, decimal fillPrice, decimal cumFilled, DateTimeOffset? occurredAt = null)
     {
         UserId = userId;
         OrderId = orderId;

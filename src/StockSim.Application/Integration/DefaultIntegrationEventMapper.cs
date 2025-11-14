@@ -46,7 +46,7 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
                         break;
                     }
 
-                case OrderPartiallyFilled opf:
+                case OrderFillApplied opf:
                     {
                         var payload = new OrderPartiallyFilledV1(
                             OrderId: opf.OrderId.ToString(),
@@ -92,7 +92,7 @@ public sealed class DefaultIntegrationEventMapper : IIntegrationEventMapper
                         break;
                     }
 
-                case OrderFilled of:
+                case OrderFillComplete of:
                     {
                         var payload = new OrderFilledV1(
                             OrderId: of.OrderId.ToString(),

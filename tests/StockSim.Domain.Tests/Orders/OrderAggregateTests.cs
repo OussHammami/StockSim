@@ -29,14 +29,14 @@ public class OrderAggregateTests
         o.ApplyFill(Quantity.From(4), Price.From(100));
         Assert.Equal(6m, o.RemainingQuantity);
         Assert.Equal(OrderState.PartiallyFilled, o.State);
-        Assert.True(o.DomainEvents.OfType<OrderPartiallyFilled>().Any());
+        Assert.True(o.DomainEvents.OfType<OrderFillApplied>().Any());
 
         o.ClearDomainEvents();
 
         o.ApplyFill(Quantity.From(6), Price.From(101));
         Assert.Equal(0m, o.RemainingQuantity);
         Assert.Equal(OrderState.Filled, o.State);
-        var filled = Assert.IsType<OrderFilled>(o.DomainEvents.Last());
+        var filled = Assert.IsType<OrderFillComplete>(o.DomainEvents.Last());
         Assert.Equal(10m, filled.TotalFilledQuantity);
         Assert.True(filled.AverageFillPrice >= 100m && filled.AverageFillPrice <= 101m);
     }

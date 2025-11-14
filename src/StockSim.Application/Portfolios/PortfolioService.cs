@@ -29,6 +29,6 @@ public sealed class PortfolioService : IPortfolioService
     public async Task<IReadOnlyList<Position>> GetPositionsAsync(Guid userId, CancellationToken ct = default)
     {
         var p = await GetOrCreateAsync(userId, ct);
-        return p.Positions.OrderBy(ps => ps.Symbol).ToList();
+        return p.Positions.ToList();
     }
 }
