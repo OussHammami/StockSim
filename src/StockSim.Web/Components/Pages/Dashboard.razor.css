@@ -47,6 +47,15 @@
     max-height: 360px;
     overflow-y: auto;
 }
+
 .mud-theme-default {
     --mud-palette-table-hover: #324b6669;
+}
+
+.selected-row {
+    background-color: rgba(var(--mud-palette-primary-rgb), 0.12) !important;
+}
+
+.selected-row td {
+    font-weight: 600;
 }

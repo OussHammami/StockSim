@@ -23,4 +23,7 @@ public sealed class PortfolioClient
         var res = await _http.PostAsJsonAsync("/api/portfolio/deposit", new DepositDto(amount, userId), ct);
         res.EnsureSuccessStatusCode();
     }
+
+    public async Task<PositionDto[]> GetPositionsAsync(CancellationToken ct = default)
+        => (await _http.GetFromJsonAsync<PositionDto[]>("/api/portfolio/positions", ct)) ?? Array.Empty<PositionDto>();
 }

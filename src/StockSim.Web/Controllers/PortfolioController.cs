@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
 using StockSim.Application.Portfolios;
 using StockSim.Domain.ValueObjects;
 using StockSim.Web.Auth;
-using System.Security.Claims;
 
 namespace StockSim.Web.Controllers;
 
@@ -38,12 +36,28 @@ public sealed class PortfolioController : ControllerBase
 
     [HttpPost("deposit")]
     [Authorize]
-    [EnableRateLimiting("global")]
     public async Task<IActionResult> Deposit([FromBody] DepositDto dto, CancellationToken ct)
     {
         var userId = dto.UserId ?? User.GetStableUserId();
         await _svc.DepositAsync(userId, Money.From(dto.Amount), ct);
         return NoContent();
+    }
+
+
+
+    [HttpGet("positions")]
+    [Authorize]
+    public async Task<IActionResult> Positions(CancellationToken ct)
+    {
+        var userId = User.GetStableUserId();
+        var positions = await _svc.GetPositionsAsync(userId, ct);
+        var result = positions.Select(x => new
+        {
+            Symbol = x.Symbol.Value,
+            x.Quantity,
+            x.AvgCost
+        });
+        return Ok(result);
     }
 
     public sealed record DepositDto(decimal Amount, Guid? UserId);

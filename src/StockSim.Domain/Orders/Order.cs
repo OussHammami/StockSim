@@ -84,15 +84,15 @@ public sealed class Order: Entity
         AverageFillPrice = newCumQty == 0 ? 0 : decimal.Round(newCumAmount / newCumQty, 4, MidpointRounding.AwayFromZero);
         FilledQuantity = newCumQty;
 
+        Raise(new OrderFillApplied(UserId, Id, Symbol, Side, fillQty.Value, fillPrice.Value, FilledQuantity));
         if (RemainingQuantity == 0m)
         {
             State = OrderState.Filled;
-            Raise(new OrderFilled(UserId, Id, Symbol, Side, FilledQuantity, AverageFillPrice));
+            Raise(new OrderFillComplete(UserId, Id, Symbol, Side, FilledQuantity, AverageFillPrice));
         }
         else
         {
             State = OrderState.PartiallyFilled;
-            Raise(new OrderPartiallyFilled(UserId, Id, Symbol, Side, fillQty.Value, fillPrice.Value, FilledQuantity));
         }
     }
 

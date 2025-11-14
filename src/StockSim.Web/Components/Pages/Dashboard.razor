@@ -9,6 +9,7 @@
 @inject PortfolioClient PortfolioClient
 @inject TradingClient TradingClient
 @inject QuotesHubClient Quotes
+@inject ISnackbar Snackbar
 
 <MudSnackbarProvider />
 <MudPopoverProvider />
@@ -43,37 +44,24 @@
                         <MudTh align="right">Time</MudTh>
                     </HeaderContent>
                     <RowTemplate>
-                        <MudTd>
-                            <MudChip T="string" Color="Color.Default" Variant="Variant.Outlined" Class="chip-symbol">@context.Symbol</MudChip>
-                        </MudTd>
-
+                        <MudTd>@context.Symbol</MudTd>
+                        <MudTd align="right">@context.Last.ToString("0.####")</MudTd>
                         <MudTd align="right">
-                            <MudStack Row="true" Justify="Justify.FlexEnd" AlignItems="AlignItems.Start" Spacing="1">
-                                <MudIcon Size="Size.Small" Color="@DiffColor(context.Diff)" Icon="@DiffIcon(context.Diff)" />
-                                <MudText Color="@DiffColor(context.Diff)">@context.Last.ToString("0.####")</MudText>
-                            </MudStack>
+                            <MudText Color="Color.Success">@context.Ask.ToString("0.####")</MudText>
                         </MudTd>
-
-                        <MudTd align="right">
-                            <MudText Color="Color.Info">@context.Ask.ToString("0.####")</MudText>
-                        </MudTd>
-
                         <MudTd align="right">
                             <MudText Color="Color.Warning">@context.Bid.ToString("0.####")</MudText>
                         </MudTd>
-
                         <MudTd align="right">
                             <MudText Color="@DiffColor(context.Diff)">
                                 @((context.Diff >= 0 ? "+" : "") + context.Diff.ToString("0.####"))
                             </MudText>
                         </MudTd>
-
                         <MudTd align="right">
                             <MudText Color="@DiffColor(context.Diff)">
                                 @(((context.ChangePct >= 0 ? "+" : "") + context.ChangePct.ToString("0.##") + "%"))
                             </MudText>
                         </MudTd>
-
                         <MudTd align="right">
                             @context.UpdatedAt.ToLocalTime().ToString("HH:mm:ss")
                         </MudTd>
@@ -81,9 +69,13 @@
                     <NoRecordsContent>
                         <MudText Color="Color.Secondary">Waiting for quotes...</MudText>
                     </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
                 </MudTable>
+
                 <MudText Color="Color.Secondary" Typo="Typo.caption">Tip: click a symbol to prefill the Trade form.</MudText>
-            </MudPaper>           
+            </MudPaper>
 
             <!-- orders unchanged, just wrapped to look like a card -->
             <MudPaper Class="p-0 orders-panel">
@@ -91,7 +83,7 @@
                     <MudText Typo="Typo.h6">Recent Orders</MudText>
                 </MudStack>
 
-                <MudTable Items="_orders" Dense="true" RowsPerPage="8"> 
+                <MudTable Items="_orders" Dense="true" RowsPerPage="8">
                     <NoRecordsContent>
                         <MudText Color="Color.Secondary">No orders.</MudText>
                     </NoRecordsContent>
@@ -137,18 +129,18 @@
                             <MudText Color="Color.Secondary">Reserved: @(_summary?.ReservedCash.ToString("0.##") ?? "-")</MudText>
                         </MudStack>
                     </MudStack>
-
-                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center" Class="account-deposit">
-                        <MudNumericField T="decimal" @bind-Value="_deposit" Min="0" Label="Deposit amount" Class="account-deposit-input" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="DepositAsync">Deposit</MudButton>
+                    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
+                        <MudNumericField T="decimal" @bind-Value="_deposit" Label="Deposit" Min="0" />
+                        <MudButton Variant="Variant.Outlined" OnClick="DepositAsync">Deposit</MudButton>
                     </MudStack>
                 </MudStack>
             </MudPaper>
-            <!-- trade goes first -->
+
+            <!-- trade form -->
             <MudPaper Class="p-3 trade-panel">
-                <MudText Typo="Typo.h6" Class="mb-2">Trade</MudText>
+                <MudText Typo="Typo.h6">Trade</MudText>
                 <MudForm>
-                    <MudTextField T="string" @bind-Value="_form.Symbol" Label="Symbol" Required="true" />
+                    <MudTextField @bind-Value="_form.Symbol" Label="Symbol" Required="true" />
                     <MudNumericField T="decimal" @bind-Value="_form.Quantity" Label="Quantity" Required="true" Min="0.0001m" />
                     <MudSelect T="OrderType"
                                Label="Type"
@@ -173,13 +165,37 @@
                     </MudStack>
                 </MudForm>
             </MudPaper>
+
+            <!-- positions grid -->
+            <MudPaper Class="p-3 positions-panel">
+                <MudText Typo="Typo.h6">Positions</MudText>
+                <MudTable Items="_positions" Dense="true" Bordered="true" Hover="true" RowsPerPage="8">
+                    <HeaderContent>
+                        <MudTh>Symbol</MudTh>
+                        <MudTh align="right">Quantity</MudTh>
+                        <MudTh align="right">Avg Cost</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Symbol</MudTd>
+                        <MudTd align="right">@context.Quantity.ToString("0.####")</MudTd>
+                        <MudTd align="right">@context.AvgCost.ToString("0.####")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Color="Color.Secondary">No positions.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudPaper>
         </MudStack>
     </MudItem>
 </MudGrid>
 
 @code {
     private PortfolioClient.SummaryDto? _summary;
-    private TradingClient.OrderDto[] _orders = Array.Empty <TradingClient.OrderDto>();
+    private TradingClient.OrderDto[] _orders = Array.Empty<TradingClient.OrderDto>();
+    private PositionRow[] _positions = Array.Empty<PositionRow>();
+
+    // Track previous states for notifications
+    private readonly Dictionary<string, string> _orderStates = new(StringComparer.OrdinalIgnoreCase);
 
     // Trade form
     private readonly OrderForm _form = new()
@@ -195,25 +211,18 @@
     // Quotes state
     private readonly Dictionary<string, QuoteRow> _quotes = new(StringComparer.OrdinalIgnoreCase);
 
+    private CancellationTokenSource? _pollCts;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadSummaryAsync();
         await ReloadOrdersAsync();
+        await ReloadPositionsAsync();
 
-        StateHasChanged();
+        // Start lightweight polling for updates (every 2s)
+        _pollCts = new CancellationTokenSource();
+        _ = Task.Run(() => PollLoopAsync(_pollCts.Token));
     }
-
-    private async Task LoadSummaryAsync()
-    {
-        _summary = await PortfolioClient.GetSummaryAsync();
-        StateHasChanged();
-    }
-    private async Task ReloadOrdersAsync()
-    {
-        _orders = (await TradingClient.GetRecentAsync()).ToArray();
-        StateHasChanged();
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
@@ -225,7 +234,99 @@
         };
     }
 
-    // Example quote handler (call this from your hub callback)
+    public void Dispose()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+    }
+
+    private async Task PollLoopAsync(CancellationToken ct)
+    {
+        var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                await ReloadOrdersAsync(notifyChanges: true);
+                await LoadSummaryAsync();
+                await ReloadPositionsAsync();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // ignore
+        }
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        _summary = await PortfolioClient.GetSummaryAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ReloadOrdersAsync(bool notifyChanges = false)
+    {
+        var orders = (await TradingClient.GetRecentAsync()).ToArray();
+        if (notifyChanges)
+            NotifyOrderStateChanges(orders);
+
+        _orders = orders;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ReloadPositionsAsync()
+    {
+        _positions = (await PortfolioClient.GetPositionsAsync())
+            .OrderBy(p => p.Symbol)
+            .Select(p => new PositionRow { Symbol = p.Symbol, Quantity = p.Quantity, AvgCost = p.AvgCost })
+            .ToArray();
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void NotifyOrderStateChanges(TradingClient.OrderDto[] latest)
+    {
+        foreach (var o in latest)
+        {
+            if (_orderStates.TryGetValue(o.Id, out var prev))
+            {
+                if (!string.Equals(prev, o.State, StringComparison.OrdinalIgnoreCase))
+                {
+                    ShowOrderToast(o);
+                    _orderStates[o.Id] = o.State;
+                }
+            }
+            else
+            {
+                _orderStates[o.Id] = o.State;
+            }
+        }
+    }
+
+    private void ShowOrderToast(TradingClient.OrderDto o)
+    {
+        var msg = o.State switch
+        {
+            "Accepted" => $"Order {o.Id[..8]} accepted: {o.Side} {o.Quantity} {o.Symbol}",
+            "PartiallyFilled" => $"Order {o.Id[..8]} partially filled: {o.FilledQuantity}/{o.Quantity}",
+            "Filled" => $"Order {o.Id[..8]} filled: {o.Quantity} @ avg {o.AverageFillPrice:0.####}",
+            "Rejected" => $"Order {o.Id[..8]} rejected",
+            "Canceled" => $"Order {o.Id[..8]} canceled",
+            _ => $"Order {o.Id[..8]} -> {o.State}"
+        };
+
+        var severity = o.State switch
+        {
+            "Filled" => Severity.Success,
+            "PartiallyFilled" => Severity.Info,
+            "Accepted" => Severity.Normal,
+            "Rejected" => Severity.Error,
+            "Canceled" => Severity.Warning,
+            _ => Severity.Normal
+        };
+
+        Snackbar.Add(msg, severity, cfg => cfg.RequireInteraction = false);
+    }
     private void OnQuoteReceived(QuoteMsg msg)
     {
         // Quote is a placeholder DTO; adapt fields to your actual hub payload
@@ -263,10 +364,9 @@
         InvokeAsync(StateHasChanged);
     }
 
-    private void RefreshQuotes()
+    private async Task RefreshQuotes()
     {
         // optional: request a snapshot from the hub/service if supported
-        // otherwise this button is a no-op placeholder
     }
 
     // Row selection -> populate Trade Symbol
@@ -277,11 +377,6 @@
 
     private static Color DiffColor(decimal diff) =>
         diff > 0 ? Color.Success : diff < 0 ? Color.Error : Color.Default;
-
-    private static string DiffIcon(decimal diff) =>
-        diff > 0 ? Icons.Material.Filled.ArrowDropUp :
-        diff < 0 ? Icons.Material.Filled.ArrowDropDown :
-                   Icons.Material.Filled.Remove;
 
     private async Task DepositAsync()
     {
@@ -305,8 +400,13 @@
                 _form.Type == OrderType.Limit ? _form.LimitPrice : null);
 
             await TradingClient.PlaceAsync(dto);
-            await ReloadOrdersAsync();
+
+            // immediate UI refresh + toast
+            await ReloadOrdersAsync(notifyChanges: true);
             await LoadSummaryAsync();
+            await ReloadPositionsAsync();
+
+            Snackbar.Add($"Order placed: {_form.Side} {_form.Quantity} {_form.Symbol} ({_form.Type})", Severity.Normal);
         }
         finally
         {
@@ -336,10 +436,16 @@
         public decimal Last { get; set; }
         public decimal Ask { get; set; }
         public decimal Bid { get; set; }
-        public decimal RefPrice { get; set; }  // previous close or first seen price
-        public decimal Diff { get; set; }      // Last - RefPrice
-        public decimal ChangePct { get; set; } // (Diff / RefPrice) * 100
+        public decimal Diff { get; set; }
+        public decimal RefPrice { get; set; }
+        public decimal ChangePct { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
     }
 
+    private sealed class PositionRow
+    {
+        public string Symbol { get; set; } = "";
+        public decimal Quantity { get; set; }
+        public decimal AvgCost { get; set; }
+    }
 }

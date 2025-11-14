@@ -22,7 +22,7 @@ public sealed class OrderRepository : IOrderRepository
             .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Order>> GetOpenBySymbolAsync(Symbol symbol, CancellationToken ct = default) =>
-    await _db.Orders.AsNoTracking()
+    await _db.Orders
         .Where(o => o.Symbol.Value == symbol.Value &&
                     (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
                     o.Quantity.Value > o.FilledQuantity)
@@ -42,7 +42,7 @@ public sealed class OrderRepository : IOrderRepository
         .ToListAsync(ct);
 
     public async Task<IReadOnlyList<Symbol>> GetSymbolsWithOpenAsync(CancellationToken ct = default) =>
-        await _db.Orders
+        await _db.Orders.AsNoTracking()
             .Where(o => (o.State == OrderState.Accepted || o.State == OrderState.PartiallyFilled) &&
                         o.Quantity.Value > o.FilledQuantity)
             .Select(o => o.Symbol)
