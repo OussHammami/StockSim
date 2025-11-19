@@ -13,7 +13,7 @@ test.describe('Blazor auth', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await Promise.all([
       page.waitForURL('**/Account/Register*', { waitUntil: 'domcontentloaded' }),
-      page.getByRole('link', { name: /register/i }).click(),
+      page.getByRole('link', { name: 'Register', exact: true }).click(),
     ]);
 
     // Your inputs have no <label>; use name="Input.*"

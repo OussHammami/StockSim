@@ -73,9 +73,15 @@ public sealed class TestingWebAppFactory : WebApplicationFactory<Program>
             services.AddAuthorization();
             using var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
-            scope.ServiceProvider.GetRequiredService<AuthDbContext>().Database.EnsureCreated();
-            scope.ServiceProvider.GetRequiredService<TradingDbContext>().Database.EnsureCreated();
-            scope.ServiceProvider.GetRequiredService<PortfolioDbContext>().Database.EnsureCreated();
+            var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var tradingDb = scope.ServiceProvider.GetRequiredService<TradingDbContext>();
+            var portfolioDb = scope.ServiceProvider.GetRequiredService<PortfolioDbContext>();
+            await authDb.Database.EnsureDeletedAsync();
+            await tradingDb.Database.EnsureDeletedAsync();
+            await portfolioDb.Database.EnsureDeletedAsync();
+            await authDb.Database.EnsureCreatedAsync();
+            await tradingDb.Database.EnsureCreatedAsync();
+            await portfolioDb.Database.EnsureCreatedAsync();
         });
 
         builder.ConfigureLogging(lb =>
