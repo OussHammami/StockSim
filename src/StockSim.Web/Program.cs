@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using StockSim.Application;
 using StockSim.Infrastructure;
+using StockSim.Infrastructure.Identity;
+using StockSim.Infrastructure.Persistence.Portfolioing;
+using StockSim.Infrastructure.Persistence.Trading;
 using StockSim.Web.Components;
 using StockSim.Web.Demo;
 using StockSim.Web.Hubs;
@@ -96,6 +99,32 @@ if (builder.Environment.IsDevelopment())
 }
 
 var app = builder.Build();
+
+// AUTO-APPLY EF CORE MIGRATIONS ON STARTUP (Trading + Portfolio)
+using (var scope = app.Services.CreateScope())
+{
+    var sp = scope.ServiceProvider;
+    var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("DbMigration");
+
+    try
+    {
+        var tradingDb = sp.GetRequiredService<TradingDbContext>();
+        await tradingDb.Database.MigrateAsync();
+
+        var portfolioDb = sp.GetRequiredService<PortfolioDbContext>();
+        await portfolioDb.Database.MigrateAsync();
+
+        var authDb = sp.GetRequiredService<AuthDbContext>();
+        await authDb.Database.MigrateAsync();
+
+        logger.LogInformation("Applied database migrations for TradingDb, PortfolioDb and AuthDb.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Error applying database migrations.");
+        throw;
+    }
+}
 
 // pipeline
 app.UseBasePipeline();
