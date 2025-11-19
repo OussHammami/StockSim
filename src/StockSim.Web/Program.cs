@@ -100,29 +100,32 @@ if (builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
-// AUTO-APPLY EF CORE MIGRATIONS ON STARTUP (Trading + Portfolio)
-using (var scope = app.Services.CreateScope())
+if (!app.Environment.IsEnvironment("Testing"))
 {
-    var sp = scope.ServiceProvider;
-    var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("DbMigration");
-
-    try
+    // AUTO-APPLY EF CORE MIGRATIONS ON STARTUP (Trading + Portfolio)
+    using (var scope = app.Services.CreateScope())
     {
-        var tradingDb = sp.GetRequiredService<TradingDbContext>();
-        await tradingDb.Database.MigrateAsync();
+        var sp = scope.ServiceProvider;
+        var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("DbMigration");
 
-        var portfolioDb = sp.GetRequiredService<PortfolioDbContext>();
-        await portfolioDb.Database.MigrateAsync();
+        try
+        {
+            var tradingDb = sp.GetRequiredService<TradingDbContext>();
+            await tradingDb.Database.MigrateAsync();
 
-        var authDb = sp.GetRequiredService<AuthDbContext>();
-        await authDb.Database.MigrateAsync();
+            var portfolioDb = sp.GetRequiredService<PortfolioDbContext>();
+            await portfolioDb.Database.MigrateAsync();
 
-        logger.LogInformation("Applied database migrations for TradingDb, PortfolioDb and AuthDb.");
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Error applying database migrations.");
-        throw;
+            var authDb = sp.GetRequiredService<AuthDbContext>();
+            await authDb.Database.MigrateAsync();
+
+            logger.LogInformation("Applied database migrations for TradingDb, PortfolioDb and AuthDb.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error applying database migrations.");
+            throw;
+        }
     }
 }
 
