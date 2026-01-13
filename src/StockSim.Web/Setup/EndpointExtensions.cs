@@ -12,7 +12,6 @@ public static class EndpointExtensions
         where TRoot : class
         where THub : Hub
     {
-        app.MapPrometheusScrapingEndpoint("/metrics");
         app.MapHealthChecks("/healthz");
         app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.Contains("ready") });
         app.MapHub<THub>("/hubs/orders").RequireCors(corsPolicy);

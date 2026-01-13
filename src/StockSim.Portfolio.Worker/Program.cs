@@ -72,11 +72,12 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("stocksim.portfolio.worker"))
     .WithTracing(b => b
         .AddSource(Telemetry.PortfolioSourceName)
+        .AddEntityFrameworkCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddConsoleExporter())
+        .AddOtlpExporter())
     .WithMetrics(b => b
         .AddMeter(Telemetry.PortfolioSourceName)
         .AddRuntimeInstrumentation()
-        .AddPrometheusExporter());
+        .AddOtlpExporter());
 
 await builder.Build().RunAsync();

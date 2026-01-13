@@ -1,11 +1,14 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using StockSim.Application.Abstractions.Inbox;
+using StockSim.Application.Telemetry;
 using StockSim.Infrastructure.Messaging;
-using System.Reflection.Metadata;
+using System.Diagnostics;
 using System.Text;
 
 namespace StockSim.Portfolio.Worker.External.Trading;
@@ -35,7 +38,11 @@ public sealed class TradingEventsConsumer : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var queue = _rabbit.Options.Queue;
-        _log.LogInformation("TradingEventConsumer starting. Queue={Queue}", queue);
+        _log.LogInformation(
+            "TradingEventConsumer starting. Queue={Queue} OTelSourceName={SourceName} HasListeners={HasListeners}",
+            queue,
+            Telemetry.PortfolioSource.Name,
+            Telemetry.PortfolioSource.HasListeners());
         using var scope = _scopeFactory.CreateScope();
         var handler = scope.ServiceProvider.GetRequiredService<ITradingEventHandler>();
         var inbox = scope.ServiceProvider.GetRequiredService<IInboxStore<IPortfolioInboxContext>>();
@@ -51,12 +58,51 @@ public sealed class TradingEventsConsumer : BackgroundService
                 var consumer = new AsyncEventingBasicConsumer(_channel);
                 consumer.Received += async (_, ea) =>
                 {
+                    var props = ea.BasicProperties;
+
+                    var parentContext = Propagators.DefaultTextMapPropagator.Extract(
+                        default,
+                        props?.Headers,
+                        static (carrier, key) =>
+                        {
+                            if (carrier is null || !carrier.TryGetValue(key, out var obj) || obj is null)
+                                return Array.Empty<string>();
+
+                            return obj switch
+                            {
+                                byte[] bytes => new[] { Encoding.UTF8.GetString(bytes) },
+                                ReadOnlyMemory<byte> mem => new[] { Encoding.UTF8.GetString(mem.ToArray()) },
+                                string s => new[] { s },
+                                _ => new[] { obj.ToString() ?? string.Empty }
+                            };
+                        });
+
+                    var previousBaggage = OpenTelemetry.Baggage.Current;
+                    OpenTelemetry.Baggage.Current = parentContext.Baggage;
+                    using var activity = Telemetry.PortfolioSource.StartActivity(
+                        "rabbitmq.consume",
+                        ActivityKind.Consumer,
+                        parentContext.ActivityContext);
+                    if (activity is null)
+                    {
+                        _log.LogWarning(
+                            "OTel activity not created for rabbitmq.consume. SourceName={SourceName} HasListeners={HasListeners}",
+                            Telemetry.PortfolioSource.Name,
+                            Telemetry.PortfolioSource.HasListeners());
+                    }
+
                     // Extract headers
-                    var headers = ExtractHeaders(ea.BasicProperties);
-                    var messageId = ea.BasicProperties?.MessageId ?? Guid.NewGuid().ToString();
-                    var dedupeKey = ea.BasicProperties?.CorrelationId ?? messageId; // prefer CorrelationId if present
-                    var type = ea.BasicProperties?.Type ?? "(unknown)";
+                    var headers = ExtractHeaders(props);
+                    var messageId = props?.MessageId ?? Guid.NewGuid().ToString();
+                    var dedupeKey = props?.CorrelationId ?? messageId; // prefer CorrelationId if present
+                    var type = props?.Type ?? "(unknown)";
                     var bodyJson = Encoding.UTF8.GetString(ea.Body.ToArray());
+
+                    activity?.SetTag("messaging.system", "rabbitmq");
+                    activity?.SetTag("messaging.destination", queue);
+                    activity?.SetTag("messaging.operation", "consume");
+                    activity?.SetTag("messaging.message_id", messageId);
+                    activity?.SetTag("messaging.message_type", type);
 
                     // Idempotency check
                     if (await inbox.SeenAsync(dedupeKey, stoppingToken))
@@ -93,6 +139,8 @@ public sealed class TradingEventsConsumer : BackgroundService
                             _channel!.BasicNack(ea.DeliveryTag, multiple: false, requeue: true);
                         }
                     }
+
+                    OpenTelemetry.Baggage.Current = previousBaggage;
                 };
 
                 var consumerTag = _channel.BasicConsume(

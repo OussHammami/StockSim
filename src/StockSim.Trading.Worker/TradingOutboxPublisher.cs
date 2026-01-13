@@ -2,10 +2,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
+using StockSim.Application.Telemetry;
+using System.Diagnostics;
 using System.Text;
 
 public sealed class TradingOutboxPublisher : BackgroundService
@@ -24,7 +28,10 @@ public sealed class TradingOutboxPublisher : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
 
-        _log.LogInformation("TradingOutboxDispatcher started");
+        _log.LogInformation(
+            "TradingOutboxDispatcher started. OTelSourceName={SourceName} HasListeners={HasListeners}",
+            Telemetry.OrdersSource.Name,
+            Telemetry.OrdersSource.HasListeners());
         using var channel = _rabbit.CreateChannel();
         var queue = _rabbit.Options.Queue;
 
@@ -50,6 +57,20 @@ public sealed class TradingOutboxPublisher : BackgroundService
                 {
                     try
                     {
+                        using var activity = Telemetry.OrdersSource.StartActivity("rabbitmq.publish", ActivityKind.Producer);
+                        if (activity is null)
+                        {
+                            _log.LogWarning(
+                                "OTel activity not created for rabbitmq.publish. SourceName={SourceName} HasListeners={HasListeners}",
+                                Telemetry.OrdersSource.Name,
+                                Telemetry.OrdersSource.HasListeners());
+                        }
+                        activity?.SetTag("messaging.system", "rabbitmq");
+                        activity?.SetTag("messaging.destination", queue);
+                        activity?.SetTag("messaging.operation", "publish");
+                        activity?.SetTag("messaging.message_id", m.Id.ToString());
+                        activity?.SetTag("messaging.message_type", m.Type);
+
                         var body = Encoding.UTF8.GetBytes(m.Data);
                         var props = channel.CreateBasicProperties();
                         props.Persistent = _rabbit.Options.Durable;
@@ -58,6 +79,12 @@ public sealed class TradingOutboxPublisher : BackgroundService
                         props.Timestamp = new AmqpTimestamp(m.OccurredAt.ToUnixTimeSeconds());
                         if (!string.IsNullOrWhiteSpace(m.DedupeKey))
                             props.CorrelationId = m.DedupeKey;
+
+                        props.Headers ??= new Dictionary<string, object>();
+                        Propagators.DefaultTextMapPropagator.Inject(
+                            new PropagationContext(Activity.Current?.Context ?? default, OpenTelemetry.Baggage.Current),
+                            props.Headers,
+                            static (carrier, key, value) => carrier[key] = Encoding.UTF8.GetBytes(value));
 
                         // Default exchange -> queue.
                         channel.BasicPublish(exchange: "",
