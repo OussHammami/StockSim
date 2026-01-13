@@ -114,6 +114,7 @@ services:
       Rabbit__Queue: stocksim.events
       Rabbit__Durable: "true"
       MarketFeed__BaseUrl: http://marketfeed:8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -136,6 +137,8 @@ services:
       Rabbit__Pass: stocksim
       Rabbit__Queue: stocksim.events
       Rabbit__Durable: "true"
+      MarketFeed__BaseUrl: http://marketfeed:8081
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -97,11 +97,13 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("stocksim.trading.worker"))
     .WithTracing(b => b
         .AddSource(Telemetry.OrdersSourceName)
+        .AddEntityFrameworkCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddConsoleExporter())
+        .AddOtlpExporter())
     .WithMetrics(b => b
         .AddMeter(Telemetry.OrdersSourceName)
         .AddRuntimeInstrumentation()
-        .AddPrometheusExporter());
+        .AddOtlpExporter());
+
 
 await builder.Build().RunAsync();

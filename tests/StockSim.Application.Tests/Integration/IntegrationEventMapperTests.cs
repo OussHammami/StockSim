@@ -4,6 +4,7 @@ using FluentAssertions;
 using StockSim.Application.Integration;
 using StockSim.Domain.Orders;
 using StockSim.Domain.Orders.Events;
+using StockSim.Domain.Portfolio.Events;
 using StockSim.Domain.ValueObjects;
 
 namespace StockSim.Application.Tests.Integration;
@@ -132,5 +133,94 @@ public class IntegrationEventMapperTests
         Assert.Equal("Sell", root.GetProperty("Side").GetString());
         Assert.Equal(10m, root.GetProperty("TotalFilledQuantity").GetDecimal());
         Assert.Equal(250m, root.GetProperty("AverageFillPrice").GetDecimal());
+    }
+
+    [Fact]
+    public void OrderRejected_Maps_With_Reason()
+    {
+        var oid = OrderId.New();
+        var e = new OrderRejected(oid, "insufficient funds");
+
+        var ie = _mapper.Map(new[] { e }).Single();
+
+        Assert.Equal("trading.order.rejected", ie.Type);
+        Assert.Equal("trading", ie.Source);
+        Assert.Equal(oid.ToString(), ie.Subject);
+        Assert.Equal($"trading|order.rejected|{oid}", ie.DedupeKey);
+
+        using var doc = JsonDocument.Parse(ie.Data);
+        var root = doc.RootElement;
+        Assert.Equal(oid.ToString(), root.GetProperty("OrderId").GetString());
+        Assert.Equal("insufficient funds", root.GetProperty("Reason").GetString());
+    }
+
+    [Fact]
+    public void SharesReserved_Maps_All_Fields()
+    {
+        var pid = PortfolioId.New();
+        var oid = OrderId.New();
+        var e = new SharesReserved(pid, oid, Symbol.From("NVDA"), Quantity.From(7m));
+
+        var ie = _mapper.Map(new[] { e }).Single();
+
+        Assert.Equal("portfolio.shares.reserved", ie.Type);
+        Assert.Equal("portfolio", ie.Source);
+        Assert.Equal(pid.ToString(), ie.Subject);
+        Assert.Equal($"portfolio|shares.reserved|{pid}|{oid}", ie.DedupeKey);
+
+        using var doc = JsonDocument.Parse(ie.Data);
+        var root = doc.RootElement;
+        Assert.Equal(pid.ToString(), root.GetProperty("PortfolioId").GetString());
+        Assert.Equal(oid.ToString(), root.GetProperty("OrderId").GetString());
+        Assert.Equal("NVDA", root.GetProperty("Symbol").GetString());
+        Assert.Equal(7m, root.GetProperty("Quantity").GetDecimal());
+    }
+
+    [Fact]
+    public void ReservationReleased_FundsOnly_Maps_With_Null_Shares()
+    {
+        var pid = PortfolioId.New();
+        var oid = OrderId.New();
+        var e = ReservationReleased.FundsOnly(pid, oid, Money.From(15m), "expired");
+
+        var ie = _mapper.Map(new[] { e }).Single();
+
+        Assert.Equal("portfolio.reservation.released", ie.Type);
+        Assert.Equal("portfolio", ie.Source);
+        Assert.Equal(pid.ToString(), ie.Subject);
+        Assert.Equal($"portfolio|reservation.released|{pid}|{oid}|expired", ie.DedupeKey);
+
+        using var doc = JsonDocument.Parse(ie.Data);
+        var root = doc.RootElement;
+        Assert.Equal(pid.ToString(), root.GetProperty("PortfolioId").GetString());
+        Assert.Equal(oid.ToString(), root.GetProperty("OrderId").GetString());
+        Assert.Equal(15m, root.GetProperty("Funds").GetDecimal());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("Symbol").ValueKind);
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("Shares").ValueKind);
+        Assert.Equal("expired", root.GetProperty("Reason").GetString());
+    }
+
+    [Fact]
+    public void ReservationReleased_SharesOnly_Maps_With_Null_Funds()
+    {
+        var pid = PortfolioId.New();
+        var oid = OrderId.New();
+        var e = ReservationReleased.SharesOnly(pid, oid, Symbol.From("TSLA"), Quantity.From(4m), "filled");
+
+        var ie = _mapper.Map(new[] { e }).Single();
+
+        Assert.Equal("portfolio.reservation.released", ie.Type);
+        Assert.Equal("portfolio", ie.Source);
+        Assert.Equal(pid.ToString(), ie.Subject);
+        Assert.Equal($"portfolio|reservation.released|{pid}|{oid}|filled", ie.DedupeKey);
+
+        using var doc = JsonDocument.Parse(ie.Data);
+        var root = doc.RootElement;
+        Assert.Equal(pid.ToString(), root.GetProperty("PortfolioId").GetString());
+        Assert.Equal(oid.ToString(), root.GetProperty("OrderId").GetString());
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("Funds").ValueKind);
+        Assert.Equal("TSLA", root.GetProperty("Symbol").GetString());
+        Assert.Equal(4m, root.GetProperty("Shares").GetDecimal());
+        Assert.Equal("filled", root.GetProperty("Reason").GetString());
     }
 }

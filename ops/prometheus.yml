@@ -1,15 +1,10 @@
 global:
   scrape_interval: 5s
 
-scrape_configs:
-  - job_name: "web"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["web:8080"]
-  - job_name: "marketfeed"
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["marketfeed:8081"]
+scrape_configs:  
   - job_name: 'otelcol'
     static_configs:
       - targets: ['otelcol:9464']
+  - job_name: "otelcol-internal"
+    static_configs:
+      - targets: ["otelcol:8888"]

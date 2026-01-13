@@ -26,7 +26,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
-        .AddPrometheusExporter())
+        .AddOtlpExporter())
     .WithTracing(t => t
         .AddAspNetCoreInstrumentation(o =>
         {
@@ -44,7 +44,7 @@ builder.Services.AddOpenTelemetry()
             };
         })
         .AddSource("StockSim.UI", "StockSim.Orders")
-        .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans")));
+        .AddOtlpExporter());
 
 builder.Services.AddCors(o =>
 {
@@ -64,8 +64,6 @@ builder.Services.AddHostedService<PriceWorker>();
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
-
-app.MapPrometheusScrapingEndpoint("/metrics");
 
 app.UseSwagger();
 app.UseSwaggerUI();

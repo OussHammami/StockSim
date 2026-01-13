@@ -16,9 +16,9 @@ public static class ObservabilityExtensions
             .WithMetrics(m => m
                 .AddAspNetCoreInstrumentation()
                 .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation()
                 .AddMeter("StockSim.Orders", "StockSim.Portfolio")
-                .AddOtlpExporter()
-                .AddPrometheusExporter())
+                .AddOtlpExporter())
             .WithTracing(t => t
                 .AddAspNetCoreInstrumentation(o =>
                     o.Filter = ctx => !(ctx.Request.Path.StartsWithSegments("/metrics")
@@ -26,7 +26,6 @@ public static class ObservabilityExtensions
                                      || ctx.Request.Path.StartsWithSegments("/readyz")))
                 .AddHttpClientInstrumentation()
                 .AddSource("StockSim.UI", "StockSim.Orders", "StockSim.Portfolio")
-                .AddZipkinExporter(o => o.Endpoint = new Uri("http://zipkin:9411/api/v2/spans"))
                 .AddOtlpExporter());
 
         return builder;
