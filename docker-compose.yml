@@ -34,9 +34,16 @@ services:
     image: otel/opentelemetry-collector:0.106.1
     command: ["--config=/etc/otelcol-config.yaml"]
     volumes: ["./ops/otelcol.yaml:/etc/otelcol-config.yaml:ro"]
+    environment:
+      OTEL_SAMPLING_PERCENTAGE: "100"
 
   zipkin:
     image: openzipkin/zipkin:2.24
+    environment:
+      # Default Zipkin storage is in-memory. Without a cap, high trace volume can OOM the JVM.
+      STORAGE_TYPE: mem
+      MEM_MAX_SPANS: 100000
+      JAVA_OPTS: "-Xms256m -Xmx1024m"
     ports: ["9411:9411"]
 
   prometheus:

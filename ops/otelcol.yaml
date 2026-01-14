@@ -5,6 +5,14 @@ receivers:
       http: { endpoint: 0.0.0.0:4318 }
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 400
+    spike_limit_mib: 100
+  probabilistic_sampler:
+    # In local/dev you typically want 100% sampling to make spans easy to find.
+    # Dial down via OTEL_SAMPLING_PERCENTAGE (e.g. 5-20) if Zipkin gets too noisy.
+    sampling_percentage: ${OTEL_SAMPLING_PERCENTAGE}
   batch: {}
 
 exporters:
@@ -19,9 +27,9 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, probabilistic_sampler, batch]
       exporters: [zipkin]
     metrics:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, batch]
       exporters: [prometheus]
