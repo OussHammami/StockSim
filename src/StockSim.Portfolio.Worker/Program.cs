@@ -68,8 +68,20 @@ builder.Services.AddHttpClient<IMarketPriceProvider, HttpMarketPriceProvider>(cl
 });
 
 // Telemetry
+var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
+var serviceInstanceId = Environment.MachineName;
+
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r => r.AddService("stocksim.portfolio.worker"))
+    .ConfigureResource(r => r
+        .AddService(
+            serviceName: "stocksim.portfolio.worker",
+            serviceNamespace: "stocksim",
+            serviceVersion: serviceVersion,
+            serviceInstanceId: serviceInstanceId)
+        .AddAttributes(new[]
+        {
+            new KeyValuePair<string, object>("deployment.environment", builder.Environment.EnvironmentName)
+        }))
     .WithTracing(b => b
         .AddSource(Telemetry.PortfolioSourceName)
         .AddEntityFrameworkCoreInstrumentation()

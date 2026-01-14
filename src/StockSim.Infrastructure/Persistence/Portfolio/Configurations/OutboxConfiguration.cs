@@ -14,6 +14,8 @@ internal sealed class OutboxConfiguration : IEntityTypeConfiguration<OutboxMessa
         b.Property(x => x.Source).HasMaxLength(50).IsRequired();
         b.Property(x => x.Subject).HasMaxLength(200).IsRequired();
         b.Property(x => x.Data).IsRequired();
+        b.Property(x => x.TraceParent).HasMaxLength(255);
+        b.Property(x => x.TraceState).HasMaxLength(512);
         b.HasIndex(x => new { x.SentAt, x.CreatedAt });
         b.HasIndex(x => x.DedupeKey);
     }

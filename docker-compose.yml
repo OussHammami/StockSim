@@ -36,6 +36,8 @@ services:
     volumes: ["./ops/otelcol.yaml:/etc/otelcol-config.yaml:ro"]
     environment:
       OTEL_SAMPLING_PERCENTAGE: "100"
+    depends_on:
+      zipkin: { condition: service_started }
 
   zipkin:
     image: openzipkin/zipkin:2.24

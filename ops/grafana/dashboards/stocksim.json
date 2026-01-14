@@ -10,30 +10,30 @@
     {
       "id": 1,
       "type": "timeseries",
-      "title": "CPU seconds rate",
+      "title": ".NET GC alloc rate",
       "datasource": { "type": "prometheus", "uid": "prom" },
       "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(process_cpu_seconds_total[1m])",
-          "legendFormat": "{{instance}}"
+          "expr": "sum(rate(process_runtime_dotnet_gc_allocations_size_bytes_total[1m])) by (exported_job)",
+          "legendFormat": "{{exported_job}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "bytes/sec" }, "overrides": [] },
       "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
     },
     {
       "id": 2,
       "type": "timeseries",
-      "title": "ASP.NET Core requests/sec",
+      "title": "HTTP requests/sec",
       "datasource": { "type": "prometheus", "uid": "prom" },
       "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
       "targets": [
         {
           "refId": "A",
-          "expr": "aspnetcore_requests_per_second",
-          "legendFormat": "{{instance}}"
+          "expr": "sum(rate(http_server_request_duration_seconds_count[1m])) by (exported_job)",
+          "legendFormat": "{{exported_job}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "req/s" }, "overrides": [] },

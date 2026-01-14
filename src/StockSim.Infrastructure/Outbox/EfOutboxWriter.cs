@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using OpenTelemetry;
 using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
+using System.Diagnostics;
 
 namespace StockSim.Infrastructure.Outbox;
 
@@ -17,6 +19,15 @@ public sealed class EfOutboxWriter<TDbContext, TMarker> : IOutboxWriter<TMarker>
     public async Task WriteAsync(IEnumerable<IntegrationEvent> events, CancellationToken ct = default)
     {
         int count = 0;
+        var current = Activity.Current;
+        var traceParent = current is not null && current.IdFormat == ActivityIdFormat.W3C
+            ? current.Id
+            : null;
+        var traceState = current?.TraceStateString;
+        var baggage = Baggage.Current.ToString();
+        if (string.IsNullOrWhiteSpace(baggage))
+            baggage = null;
+
         foreach (var e in events)
         {
             await _db.Set<OutboxMessage>().AddAsync(new OutboxMessage
@@ -27,7 +38,10 @@ public sealed class EfOutboxWriter<TDbContext, TMarker> : IOutboxWriter<TMarker>
                 OccurredAt = e.OccurredAt,
                 Data = e.Data,
                 SchemaVersion = e.SchemaVersion,
-                DedupeKey = e.DedupeKey
+                DedupeKey = e.DedupeKey,
+                TraceParent = traceParent,
+                TraceState = traceState,
+                Baggage = baggage
             }, ct);
             count++;
         }

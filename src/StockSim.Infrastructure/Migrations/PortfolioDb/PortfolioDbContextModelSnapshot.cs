@@ -114,6 +114,9 @@ namespace StockSim.Infrastructure.Migrations.PortfolioDb
                     b.Property<string>("DedupeKey")
                         .HasColumnType("text");
 
+                    b.Property<string>("Baggage")
+                        .HasColumnType("text");
+
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -123,6 +126,14 @@ namespace StockSim.Infrastructure.Migrations.PortfolioDb
 
                     b.Property<DateTimeOffset?>("SentAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TraceParent")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("TraceState")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
 
                     b.Property<string>("Source")
                         .IsRequired()

@@ -25,7 +25,7 @@ public sealed class OrderService : IOrderService
 
     public async Task<OrderId> PlaceAsync(PlaceOrder cmd, CancellationToken ct = default)
     {
-        using var act = Telemetry.Telemetry.OrdersSource.StartActivity("Order.Place", ActivityKind.Server)?
+        using var act = Telemetry.Telemetry.OrdersSource.StartActivity("Order.Place", ActivityKind.Internal)?
             .AddTag("user.id", cmd.UserId)
             .AddTag("symbol", cmd.Symbol)
             .AddTag("side", cmd.Side.ToString())
@@ -58,7 +58,7 @@ public sealed class OrderService : IOrderService
 
     public async Task CancelAsync(CancelOrder cmd, CancellationToken ct = default)
     {
-        using var act = Telemetry.Telemetry.OrdersSource.StartActivity("Order.Cancel", ActivityKind.Server)?
+        using var act = Telemetry.Telemetry.OrdersSource.StartActivity("Order.Cancel", ActivityKind.Internal)?
             .AddTag("user.id", cmd.UserId)
             .AddTag("order.id", cmd.OrderId)
             .AddTag("reason", cmd.Reason);

@@ -79,9 +79,9 @@ If `DEMO__SEED=true`, first run seeds demo users & data:
 | React Charts   | http://localhost:5173   | Vite build served by nginx               |
 | PostgreSQL     | localhost:5433          | Host mapped → container port 5432        |
 | RabbitMQ UI    | http://localhost:15672  | AMQP on 5672                             |
-| Prometheus     | http://localhost:9090   | Scrapes Web & MarketFeed                 |
-| Grafana        | http://localhost:3000   | Dashboards auto‑provisioned              |
-| Zipkin         | http://localhost:9411   | Traces via OTLP → collector              |
+| Prometheus     | http://localhost:9090   | Scrapes otelcol and otelcol-internal     |
+| Grafana        | http://localhost:3000   | Dashboards auto-provisioned              |
+| Zipkin         | http://localhost:9411   | Traces via OTLP -> collector             |
 
 Important: Inside containers, always connect to Postgres on `Host=postgres;Port=5432`.
 
@@ -181,10 +181,11 @@ CI publishes test results and a coverage report artifact.
 ## Observability
 
 - OpenTelemetry: ASP.NET Core, HTTP, EF Core, runtime
-- Collector receives OTLP → exports to:
-  - Zipkin (traces) at http://localhost:9411
-  - Prometheus (metrics) at http://localhost:9090
-- Grafana dashboards are auto‑provisioned from `ops/grafana/dashboards/`
+- Collector receives OTLP exports and:
+  - sends traces to Zipkin at http://localhost:9411
+  - re-exposes app metrics at otelcol:9464 for Prometheus
+  - exposes internal collector metrics at otelcol:8888 for Prometheus
+- Grafana dashboards are auto-provisioned from `ops/grafana/dashboards/`
   - Example panels: `rate(process_cpu_seconds_total[1m])`, `aspnetcore_requests_per_second`
 
 ---

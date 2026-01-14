@@ -20,8 +20,20 @@ var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration));
 
 // OpenTelemetry consolidated
+var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
+var serviceInstanceId = Environment.MachineName;
+
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(rb => rb.AddService(serviceName: "stocksim.marketfeed", serviceVersion: "1.0.0"))
+    .ConfigureResource(rb => rb
+        .AddService(
+            serviceName: "stocksim.marketfeed",
+            serviceNamespace: "stocksim",
+            serviceVersion: serviceVersion,
+            serviceInstanceId: serviceInstanceId)
+        .AddAttributes(new[]
+        {
+            new KeyValuePair<string, object>("deployment.environment", builder.Environment.EnvironmentName)
+        }))
     .WithMetrics(m => m
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()

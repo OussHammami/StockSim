@@ -93,8 +93,20 @@ builder.Services.AddScoped<IInboxStore<ITradingInboxContext>,
 
 
 // Telemetry
+var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? "unknown";
+var serviceInstanceId = Environment.MachineName;
+
 builder.Services.AddOpenTelemetry()
-    .ConfigureResource(r => r.AddService("stocksim.trading.worker"))
+    .ConfigureResource(r => r
+        .AddService(
+            serviceName: "stocksim.trading.worker",
+            serviceNamespace: "stocksim",
+            serviceVersion: serviceVersion,
+            serviceInstanceId: serviceInstanceId)
+        .AddAttributes(new[]
+        {
+            new KeyValuePair<string, object>("deployment.environment", builder.Environment.EnvironmentName)
+        }))
     .WithTracing(b => b
         .AddSource(Telemetry.OrdersSourceName)
         .AddEntityFrameworkCoreInstrumentation()
