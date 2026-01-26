@@ -6,11 +6,15 @@ namespace: stocksim
 resources:
   - ../../base
   - marketfeed-ingress.yaml
+  - web-ingress.yaml
   - rabbitmq-secret.yaml
+  - postgres-secret.yaml
   - toolbox.yaml
 
 images:
   - name: stocksim/marketfeed
+    newTag: local
+  - name: stocksim/web
     newTag: local
 
 patches:

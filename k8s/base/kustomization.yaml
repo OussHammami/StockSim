@@ -7,6 +7,12 @@ resources:
   - marketfeed/service.yaml
   - rabbitmq/deployment.yaml
   - rabbitmq/service.yaml
+  - web/deployment.yaml
+  - web/service.yaml
+  - postgres/pvc.yaml
+  - postgres/deployment.yaml
+  - postgres/service.yaml
+  - postgres/init-job.yaml
 
 labels:
   - pairs:

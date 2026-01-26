@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app.kubernetes.io/name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+    spec:
+      containers:
+        - name: web
+          image: stocksim/web
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: Rabbit__Host
+              value: "rabbitmq"
+            - name: Rabbit__User
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-auth
+                  key: username
+            - name: Rabbit__Pass
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-auth
+                  key: password
+            - name: ConnectionStrings__AuthDb
+              value: "Host=postgres;Port=5432;Database=authdb;Username=stocksim;Password=stocksim"
+            - name: ConnectionStrings__TradingDb
+              value: "Host=postgres;Port=5432;Database=tradingdb;Username=stocksim;Password=stocksim"
+            - name: ConnectionStrings__PortfolioDb
+              value: "Host=postgres;Port=5432;Database=portfoliodb;Username=stocksim;Password=stocksim"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
