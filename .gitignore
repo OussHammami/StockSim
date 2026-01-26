@@ -369,3 +369,7 @@ e2e/playwright-report/
 e2e/**/trace.zip
 e2e/**/video.webm
 e2e/**/test-*.png
+
+# local secrets
+k8s/overlays/local/*-secret.yaml
+k8s/overlays/local/secrets/*.yaml

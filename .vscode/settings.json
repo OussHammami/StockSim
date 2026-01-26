@@ -1,0 +1,9 @@
+{
+  "yaml.schemas": {
+    "./.vscode/kustomize-strategic-merge-patch.schema.json": [
+      "k8s/**/**-patch.yaml",
+      "k8s/**/**-patch.yml"
+    ]
+  }
+}
+
