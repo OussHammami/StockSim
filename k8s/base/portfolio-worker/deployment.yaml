@@ -19,6 +19,10 @@ spec:
           image: stocksim/portfolio-worker
           imagePullPolicy: IfNotPresent
           env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otelcol.observability:4317"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "grpc"
             - name: Rabbit__Host
               value: rabbitmq
             - name: Rabbit__User
