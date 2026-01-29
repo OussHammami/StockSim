@@ -77,6 +77,9 @@ export default function ChartsPage() {
               <tr><th align="left">Fav</th><th align="left">Symbol</th><th align="right">Price</th><th align="right">Δ</th></tr>
             </thead>
             <tbody>
+              {favSorted.length === 0 && (
+                <tr><td colSpan={4} style={{ textAlign: "center", padding: 12, color: "var(--muted)" }}>No quotes yet</td></tr>
+              )}
               {favSorted.map(q => (
                 <tr
                   key={q.symbol}
@@ -88,9 +91,9 @@ export default function ChartsPage() {
                     {favorites.includes(q.symbol) ? "★" : "☆"}
                   </td>
                   <td>{q.symbol}</td>
-                  <td align="right">{q.price.toFixed(2)}</td>
+                  <td align="right">{Number.isFinite(q.price) ? q.price.toFixed(2) : "—"}</td>
                   <td align="right" style={{ color: q.change > 0 ? "var(--success)" : q.change < 0 ? "var(--danger)" : "inherit" }}>
-                    {(q.change >= 0 ? "+" : "") + q.change.toFixed(2)}
+                    {Number.isFinite(q.change) ? (q.change >= 0 ? "+" : "") + q.change.toFixed(2) : "—"}
                   </td>
                 </tr>
               ))}

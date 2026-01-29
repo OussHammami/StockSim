@@ -9,6 +9,7 @@ export function useCandles(points: HistoryPoint[] | undefined, bucketMs = 5000, 
     if (p.length === 0) return [];
     const byBucket = new Map<number, Candle>();
     for (const { t, p: price } of p) {
+      if (!Number.isFinite(price)) continue;
       const key = Math.floor(t / bucketMs) * bucketMs;
       const c = byBucket.get(key);
       if (!c) {

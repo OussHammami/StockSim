@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          ports:
+            - { name: http, containerPort: 3000 }
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: admin
+          volumeMounts:
+            - name: ds
+              mountPath: /etc/grafana/provisioning/datasources
+          resources:
+            requests: { cpu: 50m, memory: 256Mi }
+            limits: { cpu: 250m, memory: 512Mi }
+      volumes:
+        - name: ds
+          configMap:
+            name: grafana-datasources
+            items:
+              - key: datasource.yaml
+                path: datasource.yaml

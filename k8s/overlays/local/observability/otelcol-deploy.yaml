@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otelcol
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otelcol
+  template:
+    metadata:
+      labels:
+        app: otelcol
+    spec:
+      containers:
+        - name: otelcol
+          image: otel/opentelemetry-collector-contrib:0.106.1
+          args: ["--config=/conf/otelcol.yaml"]
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: prom-exp, containerPort: 9464 }
+            - { name: otel-metrics, containerPort: 8888 }
+          volumeMounts:
+            - name: conf
+              mountPath: /conf
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 250m, memory: 256Mi }
+      volumes:
+        - name: conf
+          configMap:
+            name: otelcol-config
+            items:
+              - key: otelcol.yaml
+                path: otelcol.yaml

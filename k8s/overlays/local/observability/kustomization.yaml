@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: observability
+
+resources:
+  - namespace.yaml
+  - otelcol-config.yaml
+  - otelcol-deploy.yaml
+  - otelcol-svc.yaml
+  - zipkin-deploy.yaml
+  - zipkin-svc.yaml
+  - prometheus-config.yaml
+  - prometheus-deploy.yaml
+  - prometheus-svc.yaml
+  - grafana-datasource.yaml
+  - grafana-deploy.yaml
+  - grafana-svc.yaml
