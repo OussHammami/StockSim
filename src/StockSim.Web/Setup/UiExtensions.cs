@@ -29,18 +29,38 @@ public static class UiExtensions
         services.AddHttpContextAccessor();
         services.AddTransient<ForwardAuthHeadersHandler>();
 
+        static Uri ResolveBaseUri(IServiceProvider sp, IConfiguration configuration)
+        {
+            static Uri EnsureTrailingSlash(Uri uri)
+                => uri.AbsoluteUri.EndsWith('/') ? uri : new Uri(uri.AbsoluteUri + "/");
+
+            var internalBaseUrl = configuration["StockSim:InternalBaseUrl"];
+            if (!string.IsNullOrWhiteSpace(internalBaseUrl) && Uri.TryCreate(internalBaseUrl, UriKind.Absolute, out var internalBaseUri))
+            {
+                var ctx = sp.GetService<IHttpContextAccessor>()?.HttpContext;
+                var pathBase = ctx?.Request.PathBase.Value ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(pathBase))
+                    return EnsureTrailingSlash(internalBaseUri);
+
+                var combined = new Uri(EnsureTrailingSlash(internalBaseUri), pathBase.TrimStart('/') + "/");
+                return EnsureTrailingSlash(combined);
+            }
+
+            var httpContext = sp.GetRequiredService<IHttpContextAccessor>().HttpContext
+                ?? throw new InvalidOperationException("No HttpContext available to build HTTP client base address. Configure StockSim:InternalBaseUrl for non-request usage.");
+
+            var fromRequest = new Uri($"{httpContext.Request.Scheme}://{httpContext.Request.Host}{httpContext.Request.PathBase}/");
+            return fromRequest;
+        }
+
         services.AddHttpClient<TradingClient>((sp, c) =>
         {
-            var ctx = sp.GetRequiredService<IHttpContextAccessor>().HttpContext!;
-            var baseUri = new Uri($"{ctx.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}");
-            c.BaseAddress = baseUri;
+            c.BaseAddress = ResolveBaseUri(sp, configuration);
         }).AddHttpMessageHandler<ForwardAuthHeadersHandler>();
 
         services.AddHttpClient<PortfolioClient>((sp, c) =>
         {
-            var ctx = sp.GetRequiredService<IHttpContextAccessor>().HttpContext!;
-            var baseUri = new Uri($"{ctx.Request.Scheme}://{ctx.Request.Host}{ctx.Request.PathBase}");
-            c.BaseAddress = baseUri;
+            c.BaseAddress = ResolveBaseUri(sp, configuration);
         }).AddHttpMessageHandler<ForwardAuthHeadersHandler>();
 
         services.AddHostedService<MarketDataStreamer>();

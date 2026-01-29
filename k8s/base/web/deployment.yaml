@@ -37,11 +37,20 @@ spec:
                   name: rabbitmq-auth
                   key: password
             - name: ConnectionStrings__AuthDb
-              value: "Host=postgres;Port=5432;Database=authdb;Username=stocksim;Password=stocksim"
+              valueFrom:
+                secretKeyRef:
+                  name: stocksim-connectionstrings
+                  key: AuthDb
             - name: ConnectionStrings__TradingDb
-              value: "Host=postgres;Port=5432;Database=tradingdb;Username=stocksim;Password=stocksim"
+              valueFrom:
+                secretKeyRef:
+                  name: stocksim-connectionstrings
+                  key: TradingDb
             - name: ConnectionStrings__PortfolioDb
-              value: "Host=postgres;Port=5432;Database=portfoliodb;Username=stocksim;Password=stocksim"
+              valueFrom:
+                secretKeyRef:
+                  name: stocksim-connectionstrings
+                  key: PortfolioDb
           resources:
             requests:
               cpu: 100m

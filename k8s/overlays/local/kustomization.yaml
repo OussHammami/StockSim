@@ -10,11 +10,16 @@ resources:
   - rabbitmq-secret.yaml
   - postgres-secret.yaml
   - toolbox.yaml
+  - stocksim-connectionstrings-secret.yaml
 
 images:
   - name: stocksim/marketfeed
     newTag: local
   - name: stocksim/web
+    newTag: local
+  - name: stocksim/portfolio-worker
+    newTag: local  
+  - name: stocksim/trading-worker
     newTag: local
 
 patches:
@@ -22,3 +27,15 @@ patches:
       kind: Deployment
       name: marketfeed
     path: marketfeed-patch.yaml
+  - target:
+      kind: Deployment
+      name: web
+    path: web-patch.yaml
+  - target:
+      kind: Deployment
+      name: portfolio-worker
+    path: portfolio-worker-patch.yaml
+  - target:
+      kind: Deployment
+      name: trading-worker
+    path: trading-worker-patch.yaml

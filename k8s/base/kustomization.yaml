@@ -13,6 +13,8 @@ resources:
   - postgres/deployment.yaml
   - postgres/service.yaml
   - postgres/init-job.yaml
+  - portfolio-worker/deployment.yaml
+  - trading-worker/deployment.yaml
 
 labels:
   - pairs:

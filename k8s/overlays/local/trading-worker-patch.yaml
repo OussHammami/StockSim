@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: trading-worker
+          env:
+            - name: MarketFeed__BaseUrl
+              value: "http://marketfeed"

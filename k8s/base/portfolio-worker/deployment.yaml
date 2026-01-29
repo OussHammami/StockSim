@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-worker
+  labels:
+    app.kubernetes.io/name: portfolio-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: portfolio-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: portfolio-worker
+    spec:
+      containers:
+        - name: portfolio-worker
+          image: stocksim/portfolio-worker
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: Rabbit__Host
+              value: rabbitmq
+            - name: Rabbit__User
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-auth
+                  key: username
+            - name: Rabbit__Pass
+              valueFrom:
+                secretKeyRef:
+                  name: rabbitmq-auth
+                  key: password
+            - name: ConnectionStrings__PortfolioDb
+              valueFrom:
+                secretKeyRef:
+                  name: stocksim-connectionstrings
+                  key: PortfolioDb
