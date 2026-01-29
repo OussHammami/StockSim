@@ -2,8 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   name: zipkin
+  labels:
+    app.kubernetes.io/name: zipkin
 spec:
   selector:
-    app: zipkin
+    app.kubernetes.io/name: zipkin
   ports:
-    - { name: http, port: 9411, targetPort: http }
+    - name: http
+      port: 9411
+      targetPort: http

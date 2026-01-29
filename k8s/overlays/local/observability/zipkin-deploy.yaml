@@ -2,21 +2,28 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: zipkin
+  labels:
+    app.kubernetes.io/name: zipkin
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: zipkin
+      app.kubernetes.io/name: zipkin
   template:
     metadata:
       labels:
-        app: zipkin
+        app.kubernetes.io/name: zipkin
     spec:
       containers:
         - name: zipkin
           image: openzipkin/zipkin:latest
           ports:
-            - { name: http, containerPort: 9411 }
+            - name: http
+              containerPort: 9411
           resources:
-            requests: { cpu: 50m, memory: 256Mi }
-            limits: { cpu: 250m, memory: 512Mi }
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi

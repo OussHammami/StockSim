@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   name: stocksim
   labels:
-    name: stocksim
+    app.kubernetes.io/name: stocksim

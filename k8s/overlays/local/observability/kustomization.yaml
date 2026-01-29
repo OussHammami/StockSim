@@ -16,3 +16,11 @@ resources:
   - grafana-datasource.yaml
   - grafana-deploy.yaml
   - grafana-svc.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: stocksim
+      app.kubernetes.io/component: observability
+      app.kubernetes.io/instance: local
+    includeTemplates: true
+    includeSelectors: false

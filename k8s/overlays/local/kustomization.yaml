@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: stocksim
 
 resources:
+  - namespace.yaml
   - ../../base
   - marketfeed-ingress.yaml
   - web-ingress.yaml
@@ -18,7 +19,7 @@ images:
   - name: stocksim/web
     newTag: local
   - name: stocksim/portfolio-worker
-    newTag: local  
+    newTag: local
   - name: stocksim/trading-worker
     newTag: local
 
@@ -39,3 +40,10 @@ patches:
       kind: Deployment
       name: trading-worker
     path: trading-worker-patch.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: stocksim
+      app.kubernetes.io/instance: local
+    includeTemplates: true
+    includeSelectors: false
