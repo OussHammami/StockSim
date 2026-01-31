@@ -373,3 +373,8 @@ e2e/**/test-*.png
 # local secrets
 k8s/overlays/local/*-secret.yaml
 k8s/overlays/local/secrets/*.yaml
+
+# Local env files (often contain secrets)
+.env
+.env.*
+!.env.example
