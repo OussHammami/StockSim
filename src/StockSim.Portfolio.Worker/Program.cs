@@ -12,6 +12,7 @@ using StockSim.Application.Abstractions.Outbox;
 using StockSim.Application.Integration;
 using StockSim.Application.Portfolios;
 using StockSim.Application.Telemetry;
+using StockSim.Infrastructure.Configuration;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
@@ -26,12 +27,20 @@ var builder = Host.CreateApplicationBuilder(args);
 
 // Load config files + env vars
 builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>(optional: true);
+}
+
+builder.Configuration.AddEnvironmentVariables();
+
 // Log resolved connection string once for troubleshooting
-var portfolioConn = builder.Configuration.GetConnectionString("PortfolioDb");
+var portfolioConn = builder.Configuration.GetRequiredConnectionString("PortfolioDb");
 builder.Logging.AddConsole();
 
 // Core application services

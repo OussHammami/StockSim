@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using StockSim.Application;
 using StockSim.Application.Abstractions.Events;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
@@ -16,6 +15,7 @@ using StockSim.Application.Options;
 using StockSim.Application.Orders;
 using StockSim.Application.Orders.Execution;
 using StockSim.Application.Telemetry;
+using StockSim.Infrastructure.Configuration;
 using StockSim.Infrastructure.Inbox;
 using StockSim.Infrastructure.Messaging;
 using StockSim.Infrastructure.Outbox;
@@ -30,12 +30,20 @@ var builder = Host.CreateApplicationBuilder(args);
 
 // Load config files + env vars
 builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>(optional: true);
+}
+
+builder.Configuration.AddEnvironmentVariables();
+
 // Log resolved connection string once for troubleshooting
-var tradingConn = builder.Configuration.GetConnectionString("TradingDb");
+var tradingConn = builder.Configuration.GetRequiredConnectionString("TradingDb");
 builder.Logging.AddConsole();
 
 // Core application services

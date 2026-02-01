@@ -1,15 +1,26 @@
 ﻿using Microsoft.Extensions.Options;
 using RabbitMQ.Client;
+using System.ComponentModel.DataAnnotations;
 
 namespace StockSim.Infrastructure.Messaging;
 
 public sealed class RabbitOptions
 {
-    public string Host { get; set; } = "localhost";
+    [Required]
+    public string Host { get; set; } = "";
+
+    [Range(1, 65535)]
     public int Port { get; set; } = 5672;
-    public string User { get; set; } = "guest";
-    public string Pass { get; set; } = "guest";
-    public string Queue { get; set; } = "stocksim.orders";
+
+    [Required]
+    public string User { get; set; } = "";
+
+    [Required]
+    public string Pass { get; set; } = "";
+
+    [Required]
+    public string Queue { get; set; } = "";
+
     public bool Durable { get; set; } = true;
 }
 

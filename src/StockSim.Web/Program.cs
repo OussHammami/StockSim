@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using StockSim.Application;
 using StockSim.Infrastructure;
+using StockSim.Infrastructure.Configuration;
 using StockSim.Infrastructure.Identity;
 using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
@@ -33,7 +34,7 @@ builder.Services
 builder.Services.AddEfRepositories(
     tradingDb: o =>
     {
-        o.UseNpgsql(builder.Configuration.GetConnectionString("TradingDb"));
+        o.UseNpgsql(builder.Configuration.GetRequiredConnectionString("TradingDb"));
         if (builder.Environment.IsDevelopment())
         {
             o.EnableDetailedErrors()
@@ -43,7 +44,7 @@ builder.Services.AddEfRepositories(
     },
     portfolioDb: o =>
     {
-        o.UseNpgsql(builder.Configuration.GetConnectionString("PortfolioDb"));
+        o.UseNpgsql(builder.Configuration.GetRequiredConnectionString("PortfolioDb"));
         if (builder.Environment.IsDevelopment())
         {
             o.EnableDetailedErrors()

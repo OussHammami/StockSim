@@ -1,10 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using StockSim.Application.Abstractions;
 using StockSim.Application.Abstractions.Inbox;
 using StockSim.Application.Abstractions.Outbox;
-using StockSim.Application.Integration;
 using StockSim.Application.Orders;
 using StockSim.Application.Portfolios;
 using StockSim.Infrastructure.Identity;
@@ -23,16 +21,29 @@ public static class DependencyInjection
     {
         var cs = cfg.GetConnectionString("AuthDb")
                  ?? throw new InvalidOperationException("Missing AuthDb Connection.");
+
         services.AddDatabaseDeveloperPageExceptionFilter();
 
         services.AddDbContextPool<AuthDbContext>(o => o.UseNpgsql(cs));
         services.AddPooledDbContextFactory<AuthDbContext>(o => o.UseNpgsql(cs));
 
-        services.Configure<RabbitOptions>(cfg.GetSection("Rabbit"));
+        // Fail-fast Rabbit config validation (prevents accidental defaults in prod-like setups)
+        services.AddOptions<RabbitOptions>()
+            .Bind(cfg.GetSection("Rabbit"))
+            .ValidateDataAnnotations()
+            .Validate(o =>
+                !string.IsNullOrWhiteSpace(o.Host) &&
+                !string.IsNullOrWhiteSpace(o.User) &&
+                !string.IsNullOrWhiteSpace(o.Pass) &&
+                !string.IsNullOrWhiteSpace(o.Queue),
+                "Rabbit configuration is missing required values (Host/User/Pass/Queue).")
+            .ValidateOnStart();
+
         services.AddSingleton<RabbitConnection>();
+
         return services;
     }
-    
+
     public static IServiceCollection AddEfRepositories(
         this IServiceCollection services,
         Action<DbContextOptionsBuilder> tradingDb,

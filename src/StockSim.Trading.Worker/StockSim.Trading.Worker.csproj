@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>01882739-de9e-411f-b313-eda07a4f65c5</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,8 +19,9 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />    
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">    
 	    <PrivateAssets>all</PrivateAssets>
 	    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 	</PackageReference>
