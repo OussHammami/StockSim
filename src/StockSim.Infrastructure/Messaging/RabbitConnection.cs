@@ -39,7 +39,10 @@ public sealed class RabbitConnection : IDisposable
             Port = Options.Port,
             UserName = Options.User,
             Password = Options.Pass,
-            DispatchConsumersAsync = true
+            DispatchConsumersAsync = true,            
+            AutomaticRecoveryEnabled = true,
+            TopologyRecoveryEnabled = true,
+            NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
         };
 
         Connection = factory.CreateConnection("stocksim-workers");

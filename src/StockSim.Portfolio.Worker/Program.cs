@@ -52,7 +52,10 @@ builder.Services.AddScoped<IPortfolioRepository, PortfolioRepository>();
 
 
 // RabbitMQ
-builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
+builder.Services.AddOptions<RabbitOptions>()
+    .Bind(builder.Configuration.GetSection("Rabbit"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddSingleton<RabbitConnection>();
 
 // Portfolio outbox publisher + health + consumer

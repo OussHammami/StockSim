@@ -2,12 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
 using RabbitMQ.Client;
 using StockSim.Application.Telemetry;
 using StockSim.Infrastructure.Messaging;
-using StockSim.Infrastructure.Persistence.Portfolioing;
 using StockSim.Infrastructure.Persistence.Trading;
 using System.Diagnostics;
 using System.Text;
@@ -32,7 +30,6 @@ public sealed class TradingOutboxPublisher : BackgroundService
             "TradingOutboxDispatcher started. OTelSourceName={SourceName} HasListeners={HasListeners}",
             Telemetry.OrdersSource.Name,
             Telemetry.OrdersSource.HasListeners());
-        using var channel = _rabbit.CreateChannel();
         var queue = _rabbit.Options.Queue;
 
         while (!stoppingToken.IsCancellationRequested)
@@ -52,7 +49,8 @@ public sealed class TradingOutboxPublisher : BackgroundService
                     await Task.Delay(TimeSpan.FromSeconds(1), stoppingToken);
                     continue;
                 }
-
+                
+                using var channel = _rabbit.CreateChannel();
                 foreach (var m in batch)
                 {
                     try

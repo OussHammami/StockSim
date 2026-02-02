@@ -55,7 +55,10 @@ builder.Services.AddDbContext<TradingDbContext>(opt =>
 builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 
 // RabbitMQ
-builder.Services.Configure<RabbitOptions>(builder.Configuration.GetSection("Rabbit"));
+builder.Services.AddOptions<RabbitOptions>()
+    .Bind(builder.Configuration.GetSection("Rabbit"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 builder.Services.AddSingleton<RabbitConnection>();
 
 //MarketFeed
