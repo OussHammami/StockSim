@@ -1,0 +1,16 @@
+services:
+  web:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+
+  marketfeed:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+
+  trading-worker:
+    environment:
+      DOTNET_ENVIRONMENT: Production
+
+  portfolio-worker:
+    environment:
+      DOTNET_ENVIRONMENT: Production
