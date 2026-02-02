@@ -81,9 +81,7 @@ services:
       dockerfile: Dockerfile
     env_file: [.env]
     environment:
-      # Used by Vite at build time; adjust to your hub path
-      VITE_QUOTES_HUB_URL: http://localhost:8081/hubs/quotes
-      VITE_API_BASE_URL: http://localhost:8080
+      VITE_MARKETFEED_URL: http://localhost:8081
     ports: ["5173:80"]   # nginx in container listens on 80
     depends_on:
       marketfeed: { condition: service_started }

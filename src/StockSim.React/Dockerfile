@@ -25,5 +25,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # SPA routing + prevent stale index.html
 COPY nginx-default.conf /etc/nginx/conf.d/default.conf
 
+# Runtime env injection scripts (executed by nginx image entrypoint)
+COPY docker-entrypoint.d/ /docker-entrypoint.d/
+RUN chmod +x /docker-entrypoint.d/*.sh
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

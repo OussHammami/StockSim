@@ -20,7 +20,9 @@ type Options = {
 export function useQuotes(opts: Options = {}) {
   const {
     windowSize = 240,
-    baseUrl = import.meta.env.VITE_MARKETFEED_URL ?? "http://localhost:8081",
+    baseUrl = (typeof window !== "undefined" && window.__env?.VITE_MARKETFEED_URL)
+      ? window.__env.VITE_MARKETFEED_URL
+      : (import.meta.env.VITE_MARKETFEED_URL ?? "http://localhost:8081"),
     transport = signalR.HttpTransportType.WebSockets,
     skipNegotiation = true,
   } = opts;
