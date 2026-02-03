@@ -29,6 +29,19 @@ public sealed class TestingWebAppFactory : WebApplicationFactory<Program>
 
         builder.ConfigureAppConfiguration(cfg =>
         {
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Messaging:Enabled"] = "false",
+                ["HealthChecks:RabbitEnabled"] = "false",
+
+                // Satisfy ValidateOnStart for RabbitOptions in test host
+                ["Rabbit:Host"] = "localhost",
+                ["Rabbit:Port"] = "5672",
+                ["Rabbit:User"] = "test",
+                ["Rabbit:Pass"] = "test",
+                ["Rabbit:Queue"] = "test",
+                ["Rabbit:Durable"] = "false"
+            });
             // Optional: flip any feature flags here
             cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {

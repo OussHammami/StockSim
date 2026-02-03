@@ -63,6 +63,19 @@ public class TestingWebAppFactory : WebApplicationFactory<Program>
             cfg.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Messaging:Enabled"] = "false",
+                ["HealthChecks:RabbitEnabled"] = "false",
+
+                // Satisfy ValidateOnStart for RabbitOptions in test host
+                ["Rabbit:Host"] = "localhost",
+                ["Rabbit:Port"] = "5672",
+                ["Rabbit:User"] = "test",
+                ["Rabbit:Pass"] = "test",
+                ["Rabbit:Queue"] = "test",
+                ["Rabbit:Durable"] = "false"
+            });
+            cfg.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Messaging:Enabled"] = "false",
                 ["HealthChecks:RabbitEnabled"] = "false"
             });
         });
