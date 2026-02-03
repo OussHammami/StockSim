@@ -44,6 +44,8 @@ jobs:
           context: .
           file: src/StockSim.Web/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-web:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-web:latest
@@ -54,6 +56,8 @@ jobs:
           context: .
           file: src/StockSim.MarketFeed/Dockerfile
           push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-marketfeed:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-marketfeed:latest
@@ -64,8 +68,32 @@ jobs:
           context: src/StockSim.React
           file: src/StockSim.React/Dockerfile
           push: true
-          build-args: |
-            VITE_MARKETFEED_URL=http://localhost:8081
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-react:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-react:latest
+
+      - name: Build and push Trading.Worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/StockSim.Trading.Worker/Dockerfile
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-trading-worker:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-trading-worker:latest
+
+      - name: Build and push Portfolio.Worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/StockSim.Portfolio.Worker/Dockerfile
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-portfolio-worker:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner_lc }}/stocksim-portfolio-worker:latest
