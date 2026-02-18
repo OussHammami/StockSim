@@ -2,6 +2,7 @@ targetScope = 'subscription'
 
 param rgName string
 param location string = 'westeurope'
+param namePrefix string = 'stocksim'
 param tags object = {
   app: 'stocksim'
   env: 'dev'
@@ -23,6 +24,7 @@ module env 'modules/env/main.bicep' = {
     location: location
     tags: tags
     envName: envName
+    namePrefix: namePrefix
   }
 }
 
