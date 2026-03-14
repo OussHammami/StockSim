@@ -1,0 +1,60 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: stocksim
+
+resources:
+  - namespace.yaml
+  - ../../base
+  - secret-provider-class.yaml
+  - web-ingress.yaml
+  - marketfeed-ingress.yaml
+
+images:
+  - name: stocksim/web
+    newName: stocksimacr.azurecr.io/stocksim/web
+    newTag: latest
+  - name: stocksim/marketfeed
+    newName: stocksimacr.azurecr.io/stocksim/marketfeed
+    newTag: latest
+  - name: stocksim/portfolio-worker
+    newName: stocksimacr.azurecr.io/stocksim/portfolio-worker
+    newTag: latest
+  - name: stocksim/trading-worker
+    newName: stocksimacr.azurecr.io/stocksim/trading-worker
+    newTag: latest
+
+patches:
+  - target:
+      kind: Deployment
+    path: workload-identity-patch.yaml
+  - target:
+      kind: Deployment
+      name: web
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: secrets-store
+            mountPath: /mnt/secrets
+            readOnly: true
+  - target:
+      kind: Deployment
+      name: portfolio-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: secrets-store
+            mountPath: /mnt/secrets
+            readOnly: true
+  - target:
+      kind: Deployment
+      name: trading-worker
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/volumeMounts
+        value:
+          - name: secrets-store
+            mountPath: /mnt/secrets
+            readOnly: true
