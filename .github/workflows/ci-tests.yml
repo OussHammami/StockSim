@@ -29,7 +29,7 @@ jobs:
           node-version: '20'
 
       - name: Cache NuGet
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
@@ -51,7 +51,7 @@ jobs:
         run: dotnet test tests/StockSim.IntegrationTests/StockSim.IntegrationTests.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" -r ./artifacts/tests/integration
 
       - name: Cache e2e node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: e2e/node_modules
           key: e2e-${{ runner.os }}-${{ hashFiles('e2e/package-lock.json') }}
